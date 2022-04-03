@@ -33,6 +33,8 @@ add_executable(duck_client duck_client.c prog.c test_common.c test_cert.c)
 add_executable(perf_client perf_client.c prog.c test_common.c test_cert.c)
 add_executable(perf_server perf_server.c prog.c test_common.c test_cert.c)
 
+add_executable(my_echo_client my_echo_client.c my_prog.c test_common.c test_cert.c)
+add_executable(my_echo_server my_echo_server.c my_prog.c test_common.c test_cert.c)
 
 IF (NOT MSVC)
 
@@ -68,6 +70,8 @@ TARGET_LINK_LIBRARIES(duck_client ${LIBS})
 TARGET_LINK_LIBRARIES(perf_client ${LIBS})
 TARGET_LINK_LIBRARIES(perf_server ${LIBS})
 
+TARGET_LINK_LIBRARIES(my_echo_client ${LIBS})
+TARGET_LINK_LIBRARIES(my_echo_server ${LIBS})
 
 INCLUDE(CheckFunctionExists)
 CHECK_FUNCTION_EXISTS(sendmmsg HAVE_SENDMMSG)
