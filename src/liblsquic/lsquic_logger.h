@@ -90,7 +90,8 @@ enum lsquic_logger_module {
     LSQLM_BW_SAMPLER,
     LSQLM_PACKET_RESIZE,
     LSQLM_CONN_STATS,
-    N_LSQUIC_LOGGER_MODULES
+    LSQLM_MULTICONN,
+    N_LSQUIC_LOGGER_MODULES,
 };
 
 /* Each module has its own log level.

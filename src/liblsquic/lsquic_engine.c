@@ -88,6 +88,8 @@
 #include "lsquic_ietf.h"
 #include "lsquic_handshake.h"
 
+#include "lsquic_multiconn.h"
+
 #define LSQUIC_LOGGER_MODULE LSQLM_ENGINE
 #include "lsquic_logger.h"
 
@@ -3304,6 +3306,7 @@ int
 lsquic_engine_add_cid (struct lsquic_engine_public *enpub,
                               struct lsquic_conn *conn, unsigned cce_idx)
 {
+    lsquic_test_hello_word();
     struct lsquic_engine *const engine = (struct lsquic_engine *) enpub;
     struct conn_cid_elem *const cce = &conn->cn_cces[cce_idx];
     void *peer_ctx;
