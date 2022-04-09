@@ -1,11 +1,11 @@
 /* Copyright (c) 2017 - 2021 LiteSpeed Technologies Inc.  See LICENSE. */
 /*
- * lsquic_conn.h -- Connection interface
+ * lsquic_conn_single.h -- Connection interface
  *
  * There are two types of connections: full (lsquic_full_conn.h) and mini
  * (lsquic_mini_conn.h).  The function pointers and struct in this header
  * file provide a unified interface engine.c can use to interact with
- * either of the connection types.  For this to work, struct lsquic_conn
+ * either of the connection types.  For this to work, struct lsquic_conn_single
  * must be the first element of struct full_conn and struct mini_conn.
  */
 #ifndef LSQUIC_CONN_H
@@ -23,7 +23,7 @@
 #define LSQUIC_TEST 0
 #endif
 
-struct lsquic_conn;
+struct lsquic_conn_single;
 struct lsquic_engine_public;
 struct lsquic_packet_out;
 struct lsquic_packet_in;
@@ -34,7 +34,7 @@ struct attq_elem;
 struct conn_stats;
 #endif
 
-enum lsquic_conn_flags {
+enum lsquic_conn_single_flags {
     LSCONN_TICKED         = (1 << 0),
     LSCONN_HAS_OUTGOING   = (1 << 1),
     LSCONN_HASHED         = (1 << 2),
@@ -104,10 +104,10 @@ struct to_coal
 struct conn_iface
 {
     enum tick_st
-    (*ci_tick) (struct lsquic_conn *, lsquic_time_t now);
+    (*ci_tick) (struct lsquic_conn_single *, lsquic_time_t now);
 
     void
-    (*ci_packet_in) (struct lsquic_conn *, struct lsquic_packet_in *);
+    (*ci_packet_in) (struct lsquic_conn_single *, struct lsquic_packet_in *);
 
     /* Note: all packets "checked out" by calling this method should be
      * returned back to the connection via ci_packet_sent() or
@@ -118,107 +118,107 @@ struct conn_iface
      * for by the congestion controller.
      */
     struct lsquic_packet_out *
-    (*ci_next_packet_to_send) (struct lsquic_conn *, const struct to_coal *);
+    (*ci_next_packet_to_send) (struct lsquic_conn_single *, const struct to_coal *);
 
     void
-    (*ci_packet_sent) (struct lsquic_conn *, struct lsquic_packet_out *);
+    (*ci_packet_sent) (struct lsquic_conn_single *, struct lsquic_packet_out *);
 
     void
-    (*ci_packet_not_sent) (struct lsquic_conn *, struct lsquic_packet_out *);
+    (*ci_packet_not_sent) (struct lsquic_conn_single *, struct lsquic_packet_out *);
 
     void
-    (*ci_packet_too_large) (struct lsquic_conn *, struct lsquic_packet_out *);
+    (*ci_packet_too_large) (struct lsquic_conn_single *, struct lsquic_packet_out *);
 
     void
-    (*ci_hsk_done) (struct lsquic_conn *, enum lsquic_hsk_status);
+    (*ci_hsk_done) (struct lsquic_conn_single *, enum lsquic_hsk_status);
 
     void
-    (*ci_destroy) (struct lsquic_conn *);
+    (*ci_destroy) (struct lsquic_conn_single *);
 
     int
-    (*ci_is_tickable) (struct lsquic_conn *);
+    (*ci_is_tickable) (struct lsquic_conn_single *);
 
     lsquic_time_t
-    (*ci_next_tick_time) (struct lsquic_conn *, unsigned *why);
+    (*ci_next_tick_time) (struct lsquic_conn_single *, unsigned *why);
 
     int
-    (*ci_can_write_ack) (struct lsquic_conn *);
+    (*ci_can_write_ack) (struct lsquic_conn_single *);
 
     /* No return status: best effort */
     void
-    (*ci_write_ack) (struct lsquic_conn *, struct lsquic_packet_out *);
+    (*ci_write_ack) (struct lsquic_conn_single *, struct lsquic_packet_out *);
 
 #if LSQUIC_CONN_STATS
     const struct conn_stats *
-    (*ci_get_stats) (struct lsquic_conn *);
+    (*ci_get_stats) (struct lsquic_conn_single *);
 
     void
-    (*ci_log_stats) (struct lsquic_conn *);
+    (*ci_log_stats) (struct lsquic_conn_single *);
 #endif
 
     void
-    (*ci_client_call_on_new) (struct lsquic_conn *);
+    (*ci_client_call_on_new) (struct lsquic_conn_single *);
 
     enum LSQUIC_CONN_STATUS
-    (*ci_status) (struct lsquic_conn *, char *errbuf, size_t bufsz);
+    (*ci_status) (struct lsquic_conn_single *, char *errbuf, size_t bufsz);
 
     unsigned
-    (*ci_n_avail_streams) (const struct lsquic_conn *);
+    (*ci_n_avail_streams) (const struct lsquic_conn_single *);
 
     unsigned
-    (*ci_n_pending_streams) (const struct lsquic_conn *);
+    (*ci_n_pending_streams) (const struct lsquic_conn_single *);
 
     unsigned
-    (*ci_cancel_pending_streams) (struct lsquic_conn *, unsigned n);
+    (*ci_cancel_pending_streams) (struct lsquic_conn_single *, unsigned n);
 
     void
-    (*ci_going_away) (struct lsquic_conn *);
+    (*ci_going_away) (struct lsquic_conn_single *);
 
     int
-    (*ci_is_push_enabled) (struct lsquic_conn *);
+    (*ci_is_push_enabled) (struct lsquic_conn_single *);
 
     /* Optional: only used by gQUIC frames reader */
     /* If stream is already closed, NULL is returned */
     struct lsquic_stream *
-    (*ci_get_stream_by_id) (struct lsquic_conn *, lsquic_stream_id_t stream_id);
+    (*ci_get_stream_by_id) (struct lsquic_conn_single *, lsquic_stream_id_t stream_id);
 
     struct lsquic_engine *
-    (*ci_get_engine) (struct lsquic_conn *);
+    (*ci_get_engine) (struct lsquic_conn_single *);
 
     void
-    (*ci_make_stream) (struct lsquic_conn *);
+    (*ci_make_stream) (struct lsquic_conn_single *);
 
     void
-    (*ci_abort) (struct lsquic_conn *);
+    (*ci_abort) (struct lsquic_conn_single *);
 
     void
-    (*ci_retire_cid) (struct lsquic_conn *);
+    (*ci_retire_cid) (struct lsquic_conn_single *);
 
     void
-    (*ci_close) (struct lsquic_conn *);
+    (*ci_close) (struct lsquic_conn_single *);
 
     void
-    (*ci_stateless_reset) (struct lsquic_conn *);
+    (*ci_stateless_reset) (struct lsquic_conn_single *);
 
     int
-    (*ci_crypto_keysize) (const struct lsquic_conn *);
+    (*ci_crypto_keysize) (const struct lsquic_conn_single *);
 
     int
-    (*ci_crypto_alg_keysize) (const struct lsquic_conn *);
+    (*ci_crypto_alg_keysize) (const struct lsquic_conn_single *);
 
     enum lsquic_crypto_ver
-    (*ci_crypto_ver) (const struct lsquic_conn *);
+    (*ci_crypto_ver) (const struct lsquic_conn_single *);
 
     const char *
-    (*ci_crypto_cipher) (const struct lsquic_conn *);
+    (*ci_crypto_cipher) (const struct lsquic_conn_single *);
 
     int
-    (*ci_push_stream) (struct lsquic_conn *, void *hset, struct lsquic_stream *,
+    (*ci_push_stream) (struct lsquic_conn_single *, void *hset, struct lsquic_stream *,
         const struct lsquic_http_headers *headers);
 
     /* Use this to abort the connection when unlikely errors occur */
     void
-    (*ci_internal_error) (struct lsquic_conn *, const char *format, ...)
+    (*ci_internal_error) (struct lsquic_conn_single *, const char *format, ...)
 #if __GNUC__
             __attribute__((format(printf, 2, 3)))
 #endif
@@ -226,7 +226,7 @@ struct conn_iface
 
     /* Abort connection with error */
     void
-    (*ci_abort_error) (struct lsquic_conn *, int is_app, unsigned error_code,
+    (*ci_abort_error) (struct lsquic_conn_single *, int is_app, unsigned error_code,
                                                         const char *format, ...)
 #if __GNUC__
             __attribute__((format(printf, 4, 5)))
@@ -234,65 +234,65 @@ struct conn_iface
     ;
 
     void
-    (*ci_tls_alert) (struct lsquic_conn *, uint8_t);
+    (*ci_tls_alert) (struct lsquic_conn_single *, uint8_t);
 
     /* Returns 0 if connection is to be deleted immediately */
     lsquic_time_t
-    (*ci_drain_time) (const struct lsquic_conn *);
+    (*ci_drain_time) (const struct lsquic_conn_single *);
 
     /* Returns true if it's time to report the connection's CIDs' liveness */
     int
-    (*ci_report_live) (struct lsquic_conn *, lsquic_time_t now);
+    (*ci_report_live) (struct lsquic_conn_single *, lsquic_time_t now);
 
     /* If `local_sa' is NULL, return default path */
     struct network_path *
-    (*ci_get_path) (struct lsquic_conn *, const struct sockaddr *local_sa);
+    (*ci_get_path) (struct lsquic_conn_single *, const struct sockaddr *local_sa);
 
     unsigned char
-    (*ci_record_addrs) (struct lsquic_conn *, void *peer_ctx,
+    (*ci_record_addrs) (struct lsquic_conn_single *, void *peer_ctx,
         const struct sockaddr *local_sa, const struct sockaddr *peer_sa);
 
     const lsquic_cid_t *
-    (*ci_get_log_cid) (const struct lsquic_conn *);
+    (*ci_get_log_cid) (const struct lsquic_conn_single *);
 
     /* Optional method.  Only used by the IETF client code. */
     void
-    (*ci_drop_crypto_streams) (struct lsquic_conn *);
+    (*ci_drop_crypto_streams) (struct lsquic_conn_single *);
 
     /* Optional method.  Only used by IETF connections */
     void
-    (*ci_count_garbage) (struct lsquic_conn *, size_t);
+    (*ci_count_garbage) (struct lsquic_conn_single *, size_t);
 
     /* Optional method.  Must be implemented if connection sends MTU probes */
     void
-    (*ci_mtu_probe_acked) (struct lsquic_conn *,
+    (*ci_mtu_probe_acked) (struct lsquic_conn_single *,
                                             const struct lsquic_packet_out *);
 
     /* Optional method.  It is called when RTO occurs. */
     void
-    (*ci_retx_timeout) (struct lsquic_conn *);
+    (*ci_retx_timeout) (struct lsquic_conn_single *);
 
     void
-    (*ci_ack_snapshot) (struct lsquic_conn *, struct ack_state *);
+    (*ci_ack_snapshot) (struct lsquic_conn_single *, struct ack_state *);
 
     void
-    (*ci_ack_rollback) (struct lsquic_conn *, struct ack_state *);
+    (*ci_ack_rollback) (struct lsquic_conn_single *, struct ack_state *);
 
     /* Optional method. */
     int
-    (*ci_want_datagram_write) (struct lsquic_conn *, int);
+    (*ci_want_datagram_write) (struct lsquic_conn_single *, int);
 
     /* Optional method */
     int
-    (*ci_set_min_datagram_size) (struct lsquic_conn *, size_t);
+    (*ci_set_min_datagram_size) (struct lsquic_conn_single *, size_t);
 
     /* Optional method */
     size_t
-    (*ci_get_min_datagram_size) (struct lsquic_conn *);
+    (*ci_get_min_datagram_size) (struct lsquic_conn_single *);
 
     /* Optional method */
     void
-    (*ci_early_data_failed) (struct lsquic_conn *);
+    (*ci_early_data_failed) (struct lsquic_conn_single *);
 };
 
 #define LSCONN_CCE_BITS 3
@@ -320,7 +320,7 @@ struct conn_cid_elem
     }                           cce_flags;
 };
 
-struct lsquic_conn
+struct lsquic_conn_single
 {
     void                        *cn_enc_session;
     const struct enc_session_funcs_common
@@ -330,22 +330,22 @@ struct lsquic_conn
         const struct enc_session_funcs_iquic   *i;
     }                            cn_esf;
 #define cn_cid cn_cces[0].cce_cid
-    STAILQ_ENTRY(lsquic_conn)    cn_next_closed_conn;
+    STAILQ_ENTRY(lsquic_conn_single)    cn_next_closed_conn;
     /* This and cn_next_closed_conn could be made into a union, as new full
      * connections are never closed.
      */
-    STAILQ_ENTRY(lsquic_conn)    cn_next_new_full;
-    TAILQ_ENTRY(lsquic_conn)     cn_next_ticked;
-    TAILQ_ENTRY(lsquic_conn)     cn_next_out;
-    TAILQ_ENTRY(lsquic_conn)     cn_next_pr;
+    STAILQ_ENTRY(lsquic_conn_single)    cn_next_new_full;
+    TAILQ_ENTRY(lsquic_conn_single)     cn_next_ticked;
+    TAILQ_ENTRY(lsquic_conn_single)     cn_next_out;
+    TAILQ_ENTRY(lsquic_conn_single)     cn_next_pr;
     const struct conn_iface     *cn_if;
     const struct parse_funcs    *cn_pf;
     struct attq_elem            *cn_attq_elem;
     lsquic_time_t                cn_last_sent;
     lsquic_time_t                cn_last_ticked;
     struct conn_cid_elem        *cn_cces;   /* At least one is available */
-    lsquic_conn_ctx_t           *cn_conn_ctx;
-    enum lsquic_conn_flags       cn_flags;
+    lsquic_conn_single_ctx_t           *cn_conn_ctx;
+    enum lsquic_conn_single_flags       cn_flags;
     enum lsquic_version          cn_version:8;
     unsigned char                cn_cces_mask;  /* Those that are set */
     unsigned char                cn_n_cces; /* Number of CCEs in cn_cces */
@@ -375,15 +375,15 @@ struct lsquic_conn
 #define CN_SCID(conn) (&(conn)->cn_cces[(conn)->cn_cur_cce_idx].cce_cid)
 
 unsigned char
-lsquic_conn_record_sockaddr (lsquic_conn_t *lconn, void *peer_ctx,
+lsquic_conn_single_record_sockaddr (lsquic_conn_single_t *lconn, void *peer_ctx,
             const struct sockaddr *local_sa, const struct sockaddr *peer_sa);
 
 int
-lsquic_conn_decrypt_packet (lsquic_conn_t *lconn,
+lsquic_conn_single_decrypt_packet (lsquic_conn_single_t *lconn,
                     struct lsquic_engine_public *, struct lsquic_packet_in *);
 
 int
-lsquic_conn_copy_and_release_pi_data (const lsquic_conn_t *conn,
+lsquic_conn_single_copy_and_release_pi_data (const lsquic_conn_single_t *conn,
                     struct lsquic_engine_public *, struct lsquic_packet_in *);
 
 void
@@ -393,13 +393,13 @@ void
 lsquic_generate_cid_gquic (lsquic_cid_t *cid);
 
 void
-lsquic_generate_scid (void *, struct lsquic_conn *lconn, lsquic_cid_t *scid,
+lsquic_generate_scid (void *, struct lsquic_conn_single *lconn, lsquic_cid_t *scid,
                                                                 unsigned len);
 
 void
-lsquic_conn_retire_cid (lsquic_conn_t *lconn);
+lsquic_conn_single_retire_cid (lsquic_conn_single_t *lconn);
 
-#define lsquic_conn_adv_time(c) ((c)->cn_attq_elem->ae_adv_time)
+#define lsquic_conn_single_adv_time(c) ((c)->cn_attq_elem->ae_adv_time)
 
 #if LSQUIC_CONN_STATS
 struct conn_stats {
@@ -436,7 +436,7 @@ struct conn_stats {
 };
 
 void
-lsquic_conn_stats_diff (const struct conn_stats *cumulative,
+lsquic_conn_single_stats_diff (const struct conn_stats *cumulative,
                         const struct conn_stats *previous,
                         struct conn_stats *new);
 #endif
