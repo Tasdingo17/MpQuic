@@ -106,7 +106,7 @@ lsquic_gquic_be_parse_packet_in_finish (lsquic_packet_in_t *packet_in,
 
 
 static int
-lsquic_gquic_be_gen_reg_pkt_header (const struct lsquic_conn *lconn,
+lsquic_gquic_be_gen_reg_pkt_header (const struct lsquic_conn_single *lconn,
             const struct lsquic_packet_out *packet_out, unsigned char *buf,
         size_t bufsz, unsigned *packno_off_UNUSED, unsigned *packno_len_UNUSED)
 {

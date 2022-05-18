@@ -303,8 +303,8 @@ const enum quic_frame_type lsquic_iquic_byte2type[0x40] =
     [0x3B] = QUIC_FRAME_INVALID,
     [0x3C] = QUIC_FRAME_INVALID,
     [0x3D] = QUIC_FRAME_INVALID,
-    [0x3E] = QUIC_FRAME_INVALID,
-    [0x3F] = QUIC_FRAME_INVALID,
+    [0x3E] = QUIC_FRAME_INVALID, //QUIC_FRAME_SUBCONN
+    [0x3F] = QUIC_FRAME_INVALID, //QUIC_FRAME_SUBCONN
 };
 
 

@@ -23,7 +23,7 @@
 
 void
 lsquic_hcsi_reader_init (struct hcsi_reader *reader,
-        struct lsquic_conn *conn, const struct hcsi_callbacks *callbacks,
+        struct lsquic_conn_single *conn, const struct hcsi_callbacks *callbacks,
         void *ctx)
 {
     memset(reader, 0, sizeof(*reader));

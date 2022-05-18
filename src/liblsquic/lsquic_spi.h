@@ -12,7 +12,7 @@
 
 struct stream_prio_iter
 {
-    const struct lsquic_conn       *spi_conn;           /* Used for logging */
+    const struct lsquic_conn_single       *spi_conn;           /* Used for logging */
     const char                     *spi_name;           /* Used for logging */
     uint64_t                        spi_set[4];         /* 256 bits */
     unsigned                        spi_n_added;

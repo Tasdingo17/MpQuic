@@ -67,7 +67,7 @@ struct packet_req
 
 struct evanescent_conn
 {
-    struct lsquic_conn          evc_conn;
+    struct lsquic_conn_single          evc_conn;
     struct packet_req          *evc_req;
     struct pr_queue            *evc_queue;
     struct lsquic_packet_out    evc_packet_out;
@@ -87,7 +87,7 @@ struct evanescent_conn
 
 struct pr_queue
 {
-    TAILQ_HEAD(, lsquic_conn)   prq_free_conns,
+    TAILQ_HEAD(, lsquic_conn_single)   prq_free_conns,
                                 prq_returned_conns;
     struct malo                *prq_reqs_pool;
     const struct lsquic_engine_public
@@ -222,7 +222,7 @@ lsquic_prq_create (unsigned max_elems, unsigned max_conns,
 void
 lsquic_prq_destroy (struct pr_queue *prq)
 {
-    struct lsquic_conn *conn;
+    struct lsquic_conn_single *conn;
 
     LSQ_INFO("destroy");
     while ((conn = TAILQ_FIRST(&prq->prq_free_conns)))
@@ -381,7 +381,7 @@ static struct evanescent_conn *
 get_evconn (struct pr_queue *prq)
 {
     struct evanescent_conn *evconn;
-    struct lsquic_conn *lconn;
+    struct lsquic_conn_single *lconn;
     struct lsquic_packet_out *packet_out;
     size_t bufsz;
 
@@ -424,11 +424,11 @@ get_evconn (struct pr_queue *prq)
 }
 
 
-struct lsquic_conn *
+struct lsquic_conn_single *
 lsquic_prq_next_conn (struct pr_queue *prq)
 {
     struct evanescent_conn *evconn;
-    struct lsquic_conn *lconn;
+    struct lsquic_conn_single *lconn;
     struct lsquic_hash_elem *el;
     struct packet_req *req;
     struct lsquic_packet_out *packet_out;
@@ -515,7 +515,7 @@ lsquic_prq_have_pending (const struct pr_queue *prq)
 
 
 static struct lsquic_packet_out *
-evanescent_conn_ci_next_packet_to_send (struct lsquic_conn *lconn,
+evanescent_conn_ci_next_packet_to_send (struct lsquic_conn_single *lconn,
                                         const struct to_coal *to_coal_UNUSED)
 {
     struct evanescent_conn *const evconn = (struct evanescent_conn *) lconn;
@@ -525,7 +525,7 @@ evanescent_conn_ci_next_packet_to_send (struct lsquic_conn *lconn,
 
 
 static void
-prq_free_conn (struct pr_queue *prq, struct lsquic_conn *lconn)
+prq_free_conn (struct pr_queue *prq, struct lsquic_conn_single *lconn)
 {
     struct evanescent_conn *const evconn = (struct evanescent_conn *) lconn;
 
@@ -536,7 +536,7 @@ prq_free_conn (struct pr_queue *prq, struct lsquic_conn *lconn)
 
 
 static void
-evanescent_conn_ci_packet_sent (struct lsquic_conn *lconn,
+evanescent_conn_ci_packet_sent (struct lsquic_conn_single *lconn,
                             struct lsquic_packet_out *packet_out)
 {
     struct evanescent_conn *const evconn = (struct evanescent_conn *) lconn;
@@ -553,7 +553,7 @@ evanescent_conn_ci_packet_sent (struct lsquic_conn *lconn,
 
 
 static void
-evanescent_conn_ci_packet_not_sent (struct lsquic_conn *lconn,
+evanescent_conn_ci_packet_not_sent (struct lsquic_conn_single *lconn,
                                 struct lsquic_packet_out *packet_out)
 {
     struct evanescent_conn *const evconn = (struct evanescent_conn *) lconn;
@@ -577,7 +577,7 @@ evanescent_conn_ci_packet_not_sent (struct lsquic_conn *lconn,
 
 
 static enum tick_st
-evanescent_conn_ci_tick (struct lsquic_conn *lconn, lsquic_time_t now)
+evanescent_conn_ci_tick (struct lsquic_conn_single *lconn, lsquic_time_t now)
 {
     assert(0);
     return TICK_CLOSE;
@@ -585,14 +585,14 @@ evanescent_conn_ci_tick (struct lsquic_conn *lconn, lsquic_time_t now)
 
 
 static void
-evanescent_conn_ci_destroy (struct lsquic_conn *lconn)
+evanescent_conn_ci_destroy (struct lsquic_conn_single *lconn)
 {
     assert(0);
 }
 
 
 static struct lsquic_engine *
-evanescent_conn_ci_get_engine (struct lsquic_conn *lconn)
+evanescent_conn_ci_get_engine (struct lsquic_conn_single *lconn)
 {
     assert(0);
     return NULL;
@@ -600,7 +600,7 @@ evanescent_conn_ci_get_engine (struct lsquic_conn *lconn)
 
 
 static void
-evanescent_conn_ci_hsk_done (struct lsquic_conn *lconn,
+evanescent_conn_ci_hsk_done (struct lsquic_conn_single *lconn,
                                                 enum lsquic_hsk_status status)
 {
     assert(0);
@@ -608,7 +608,7 @@ evanescent_conn_ci_hsk_done (struct lsquic_conn *lconn,
 
 
 static void
-evanescent_conn_ci_packet_in (struct lsquic_conn *lconn,
+evanescent_conn_ci_packet_in (struct lsquic_conn_single *lconn,
                           struct lsquic_packet_in *packet_in)
 {
     assert(0);
@@ -623,7 +623,7 @@ evanescent_conn_ci_client_call_on_new (struct lsquic_conn *lconn)
 
 
 static struct network_path *
-evanescent_conn_ci_get_path (struct lsquic_conn *lconn,
+evanescent_conn_ci_get_path (struct lsquic_conn_single *lconn,
                                                     const struct sockaddr *sa)
 {
     struct evanescent_conn *const evconn = (struct evanescent_conn *) lconn;
@@ -633,7 +633,7 @@ evanescent_conn_ci_get_path (struct lsquic_conn *lconn,
 
 
 static unsigned char
-evanescent_conn_ci_record_addrs (struct lsquic_conn *lconn, void *peer_ctx,
+evanescent_conn_ci_record_addrs (struct lsquic_conn_single *lconn, void *peer_ctx,
             const struct sockaddr *local_sa, const struct sockaddr *peer_sa)
 {
     assert(0);
@@ -664,7 +664,7 @@ const char *const lsquic_preqt2str[] =
 
 
 void
-lsquic_prq_drop (struct lsquic_conn *lconn)
+lsquic_prq_drop (struct lsquic_conn_single *lconn)
 {
     struct evanescent_conn *const evconn = (void *) lconn;
 

@@ -25,7 +25,7 @@
 
 
 void
-lsquic_pacer_init (struct pacer *pacer, const struct lsquic_conn *conn,
+lsquic_pacer_init (struct pacer *pacer, const struct lsquic_conn_single *conn,
                                                 unsigned clock_granularity)
 {
     memset(pacer, 0, sizeof(*pacer));

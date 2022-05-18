@@ -1051,7 +1051,7 @@ lsquic_stream_write_avail (struct lsquic_stream *stream)
 int
 lsquic_stream_update_sfcw (lsquic_stream_t *stream, uint64_t max_off)
 {
-    struct lsquic_conn *lconn;
+    struct lsquic_conn_single *lconn;
 
     if (max_off > lsquic_sfcw_get_max_recv_off(&stream->fc) &&
                     !lsquic_sfcw_set_max_recv_off(&stream->fc, max_off))
@@ -1087,7 +1087,7 @@ lsquic_stream_frame_in (lsquic_stream_t *stream, stream_frame_t *frame)
     uint64_t max_off;
     int got_next_offset, rv, free_frame;
     enum ins_frame ins_frame;
-    struct lsquic_conn *lconn;
+    struct lsquic_conn_single *lconn;
 
     assert(frame->packet_in);
 
@@ -1205,7 +1205,7 @@ int
 lsquic_stream_rst_in (lsquic_stream_t *stream, uint64_t offset,
                       uint64_t error_code)
 {
-    struct lsquic_conn *lconn;
+    struct lsquic_conn_single *lconn;
 
     if ((stream->sm_bflags & SMBF_IETF)
             && (stream->stream_flags & STREAM_FIN_RECVD)
@@ -1474,7 +1474,7 @@ read_uh (struct lsquic_stream *stream,
 static void
 verify_cl_on_fin (struct lsquic_stream *stream)
 {
-    struct lsquic_conn *lconn;
+    struct lsquic_conn_single *lconn;
 
     /* The rules in RFC7230, Section 3.3.2 are a bit too intricate.  We take
      * a simple approach and verify content-length only when there was any
@@ -4317,10 +4317,15 @@ lsquic_stream_id (const lsquic_stream_t *stream)
 #if !defined(NDEBUG) && __GNUC__
 __attribute__((weak))
 #endif
-struct lsquic_conn *
-lsquic_stream_conn (const lsquic_stream_t *stream)
+struct lsquic_conn_single *
+lsquic_stream_conn_single (const lsquic_stream_t *stream)
 {
     return stream->conn_pub->lconn;
+}
+
+struct lsquic_conn *
+lsquic_stream_conn (const lsquic_stream_t *stream){
+    return lsquic_conn_main_conn(lsquic_stream_conn_single(stream));
 }
 
 
@@ -4811,7 +4816,7 @@ static void
 verify_cl_on_new_data_frame (struct lsquic_stream *stream,
                                                     struct hq_filter *filter)
 {
-    struct lsquic_conn *lconn;
+    struct lsquic_conn_single *lconn;
 
     stream->sm_data_in += filter->hqfi_left;
     if (stream->sm_data_in > stream->sm_cont_len)
@@ -4831,7 +4836,7 @@ hq_read (void *ctx, const unsigned char *buf, size_t sz, int fin)
     struct hq_filter *const filter = &stream->sm_hq_filter;
     const unsigned char *p = buf, *prev;
     const unsigned char *const end = buf + sz;
-    struct lsquic_conn *lconn;
+    struct lsquic_conn_single *lconn;
     enum lsqpack_read_header_status rhs;
     int s;
 

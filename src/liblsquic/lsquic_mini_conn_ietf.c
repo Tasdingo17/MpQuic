@@ -53,7 +53,7 @@ static int
 imico_can_send (const struct ietf_mini_conn *, size_t);
 
 static void
-ietf_mini_conn_ci_abort_error (struct lsquic_conn *lconn, int is_app,
+ietf_mini_conn_ci_abort_error (struct lsquic_conn_single *lconn, int is_app,
                                 unsigned error_code, const char *fmt, ...);
 
 static const enum header_type el2hety[] =
@@ -221,7 +221,7 @@ imico_stream_write (void *stream, const void *bufp, size_t bufsz)
 {
     struct mini_crypto_stream *const cryst = stream;
     struct ietf_mini_conn *const conn = cryst_get_conn(cryst);
-    struct lsquic_conn *const lconn = &conn->imc_conn;
+    struct lsquic_conn_single *const lconn = &conn->imc_conn;
     const struct parse_funcs *const pf = lconn->cn_pf;
     struct msg_ctx msg_ctx = { bufp, (unsigned char *) bufp + bufsz, };
     struct lsquic_packet_out *packet_out;
@@ -466,7 +466,7 @@ imico_peer_addr_validated (struct ietf_mini_conn *conn, const char *how)
 }
 
 
-struct lsquic_conn *
+struct lsquic_conn_single *
 lsquic_mini_conn_ietf_new (struct lsquic_engine_public *enpub,
                const struct lsquic_packet_in *packet_in,
            enum lsquic_version version, int is_ipv4, const lsquic_cid_t *odcid,
@@ -590,7 +590,7 @@ ietf_mini_conn_ci_client_call_on_new (struct lsquic_conn *lconn)
 
 
 static void
-ietf_mini_conn_ci_destroy (struct lsquic_conn *lconn)
+ietf_mini_conn_ci_destroy (struct lsquic_conn_single *lconn)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
     struct lsquic_packet_out *packet_out;
@@ -623,7 +623,7 @@ ietf_mini_conn_ci_destroy (struct lsquic_conn *lconn)
 
 
 static struct lsquic_engine *
-ietf_mini_conn_ci_get_engine (struct lsquic_conn *lconn)
+ietf_mini_conn_ci_get_engine (struct lsquic_conn_single *lconn)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
     return conn->imc_enpub->enp_engine;
@@ -631,7 +631,7 @@ ietf_mini_conn_ci_get_engine (struct lsquic_conn *lconn)
 
 
 static void
-ietf_mini_conn_ci_hsk_done (struct lsquic_conn *lconn,
+ietf_mini_conn_ci_hsk_done (struct lsquic_conn_single *lconn,
                                                 enum lsquic_hsk_status status)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
@@ -656,7 +656,7 @@ ietf_mini_conn_ci_hsk_done (struct lsquic_conn *lconn,
 
 
 static void
-ietf_mini_conn_ci_tls_alert (struct lsquic_conn *lconn, uint8_t alert)
+ietf_mini_conn_ci_tls_alert (struct lsquic_conn_single *lconn, uint8_t alert)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
     LSQ_DEBUG("got TLS alert %"PRIu8, alert);
@@ -673,7 +673,7 @@ ietf_mini_conn_ci_tls_alert (struct lsquic_conn *lconn, uint8_t alert)
  * an alarm pending, in which case it will be handled via the attq.
  */
 static int
-ietf_mini_conn_ci_is_tickable (struct lsquic_conn *lconn)
+ietf_mini_conn_ci_is_tickable (struct lsquic_conn_single *lconn)
 {
     struct ietf_mini_conn *const conn = (struct ietf_mini_conn *) lconn;
     const struct lsquic_packet_out *packet_out;
@@ -713,7 +713,7 @@ imico_zero_pad (struct lsquic_packet_out *packet_out)
 
 
 static struct lsquic_packet_out *
-ietf_mini_conn_ci_next_packet_to_send (struct lsquic_conn *lconn,
+ietf_mini_conn_ci_next_packet_to_send (struct lsquic_conn_single *lconn,
                                             const struct to_coal *to_coal)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
@@ -783,7 +783,7 @@ imico_calc_retx_timeout (const struct ietf_mini_conn *conn)
 
 
 static lsquic_time_t
-ietf_mini_conn_ci_next_tick_time (struct lsquic_conn *lconn, unsigned *why)
+ietf_mini_conn_ci_next_tick_time (struct lsquic_conn_single *lconn, unsigned *why)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
     const struct lsquic_packet_out *packet_out;
@@ -1399,7 +1399,7 @@ imico_switch_to_trechist (struct ietf_mini_conn *conn)
 
 /* Only a single packet is supported */
 static void
-ietf_mini_conn_ci_packet_in (struct lsquic_conn *lconn,
+ietf_mini_conn_ci_packet_in (struct lsquic_conn_single *lconn,
                         struct lsquic_packet_in *packet_in)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
@@ -1508,7 +1508,7 @@ ietf_mini_conn_ci_packet_in (struct lsquic_conn *lconn,
 
 
 static void
-ietf_mini_conn_ci_packet_sent (struct lsquic_conn *lconn,
+ietf_mini_conn_ci_packet_sent (struct lsquic_conn_single *lconn,
                               struct lsquic_packet_out *packet_out)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
@@ -1529,7 +1529,7 @@ ietf_mini_conn_ci_packet_sent (struct lsquic_conn *lconn,
 
 
 static void
-ietf_mini_conn_ci_packet_not_sent (struct lsquic_conn *lconn,
+ietf_mini_conn_ci_packet_not_sent (struct lsquic_conn_single *lconn,
                               struct lsquic_packet_out *packet_out)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
@@ -1583,7 +1583,7 @@ imico_handle_losses_and_have_unsent (struct ietf_mini_conn *conn,
 {
     TAILQ_HEAD(, lsquic_packet_out) lost_packets =
                                     TAILQ_HEAD_INITIALIZER(lost_packets);
-    const struct lsquic_conn *const lconn = &conn->imc_conn;
+    const struct lsquic_conn_single *const lconn = &conn->imc_conn;
     lsquic_packet_out_t *packet_out, *next;
     lsquic_time_t retx_to = 0;
     unsigned n_to_send = 0;
@@ -1975,7 +1975,7 @@ imico_generate_handshake_done (struct ietf_mini_conn *conn)
 
 
 static enum tick_st
-ietf_mini_conn_ci_tick (struct lsquic_conn *lconn, lsquic_time_t now)
+ietf_mini_conn_ci_tick (struct lsquic_conn_single *lconn, lsquic_time_t now)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
     enum tick_st tick;
@@ -2026,7 +2026,7 @@ ietf_mini_conn_ci_tick (struct lsquic_conn *lconn, lsquic_time_t now)
 
 
 static void
-ietf_mini_conn_ci_internal_error (struct lsquic_conn *lconn,
+ietf_mini_conn_ci_internal_error (struct lsquic_conn_single *lconn,
                                                     const char *format, ...)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
@@ -2036,7 +2036,7 @@ ietf_mini_conn_ci_internal_error (struct lsquic_conn *lconn,
 
 
 static void
-ietf_mini_conn_ci_abort_error (struct lsquic_conn *lconn, int is_app,
+ietf_mini_conn_ci_abort_error (struct lsquic_conn_single *lconn, int is_app,
                                 unsigned error_code, const char *fmt, ...)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
@@ -2064,7 +2064,7 @@ ietf_mini_conn_ci_abort_error (struct lsquic_conn *lconn, int is_app,
 
 
 static struct network_path *
-ietf_mini_conn_ci_get_path (struct lsquic_conn *lconn,
+ietf_mini_conn_ci_get_path (struct lsquic_conn_single *lconn,
                                                     const struct sockaddr *sa)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
@@ -2074,7 +2074,7 @@ ietf_mini_conn_ci_get_path (struct lsquic_conn *lconn,
 
 
 static const lsquic_cid_t *
-ietf_mini_conn_ci_get_log_cid (const struct lsquic_conn *lconn)
+ietf_mini_conn_ci_get_log_cid (const struct lsquic_conn_single *lconn)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
 
@@ -2086,7 +2086,7 @@ ietf_mini_conn_ci_get_log_cid (const struct lsquic_conn *lconn)
 
 
 static unsigned char
-ietf_mini_conn_ci_record_addrs (struct lsquic_conn *lconn, void *peer_ctx,
+ietf_mini_conn_ci_record_addrs (struct lsquic_conn_single *lconn, void *peer_ctx,
             const struct sockaddr *local_sa, const struct sockaddr *peer_sa)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
@@ -2126,7 +2126,7 @@ ietf_mini_conn_ci_record_addrs (struct lsquic_conn *lconn, void *peer_ctx,
 
 
 void
-ietf_mini_conn_ci_count_garbage (struct lsquic_conn *lconn, size_t garbage_sz)
+ietf_mini_conn_ci_count_garbage (struct lsquic_conn_single *lconn, size_t garbage_sz)
 {
     struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
 

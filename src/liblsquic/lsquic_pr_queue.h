@@ -42,7 +42,7 @@
 #ifndef LSQUIC_PR_QUEUE_H
 #define LSQUIC_PR_QUEUE_H 1
 
-struct lsquic_conn;
+struct lsquic_conn_single;
 struct lsquic_packet_in;
 struct lsquic_engine_settings;
 struct pr_queue;
@@ -69,13 +69,13 @@ lsquic_prq_new_req (struct pr_queue *, enum packet_req_type,
              const struct sockaddr *local_addr,
              const struct sockaddr *peer_addr);
 
-struct lsquic_conn *
+struct lsquic_conn_single *
 lsquic_prq_next_conn (struct pr_queue *);
 
 int
 lsquic_prq_have_pending (const struct pr_queue *);
 
 void
-lsquic_prq_drop (struct lsquic_conn *);
+lsquic_prq_drop (struct lsquic_conn_single *);
 
 #endif

@@ -562,7 +562,7 @@ lsquic_gquic_po_header_sz (enum packet_out_flags flags)
 
 
 size_t
-lsquic_gquic_packout_size (const struct lsquic_conn *conn,
+lsquic_gquic_packout_size (const struct lsquic_conn_single *conn,
                                 const struct lsquic_packet_out *packet_out)
 {
     return lsquic_gquic_po_header_sz(packet_out->po_flags)
@@ -573,7 +573,7 @@ lsquic_gquic_packout_size (const struct lsquic_conn *conn,
 
 
 size_t
-lsquic_gquic_packout_header_size (const struct lsquic_conn *conn,
+lsquic_gquic_packout_header_size (const struct lsquic_conn_single *conn,
                                 enum packet_out_flags flags, size_t dcid_len,
                                 enum header_type unused)
 {

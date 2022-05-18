@@ -7,11 +7,11 @@
 #ifndef LSQUIC_SHSK_STREAM_H
 #define LSQUIC_SHSK_STREAM_H 1
 
-struct lsquic_conn;
+struct lsquic_conn_single;
 struct lsquic_engine_public;
 
 struct server_hsk_ctx {
-    struct lsquic_conn          *lconn;
+    struct lsquic_conn_single          *lconn;
     struct lsquic_engine_public *enpub;
     enum {
         SHC_WARNED      = (1 << 0),         /* Warning has been printed */

@@ -9,7 +9,7 @@
 #include <sys/queue.h>
 
 struct malo;
-struct lsquic_conn;
+struct lsquic_conn_single;
 struct lsquic_engine_public;
 struct lsquic_mm;
 struct lsquic_stream;
@@ -308,7 +308,7 @@ lsquic_pofi_next (struct packet_out_frec_iter *pofi);
 
 lsquic_packet_out_t *
 lsquic_packet_out_new (struct lsquic_mm *, struct malo *, int use_cid,
-                       const struct lsquic_conn *, enum packno_bits,
+                       const struct lsquic_conn_single *, enum packno_bits,
                        const lsquic_ver_tag_t *, const unsigned char *nonce,
                        const struct network_path *, enum header_type);
 

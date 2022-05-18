@@ -37,6 +37,7 @@ enum quic_frame_type
     QUIC_FRAME_ACK_FREQUENCY,       /* I */
     QUIC_FRAME_TIMESTAMP,           /* I */
     QUIC_FRAME_DATAGRAM,            /* I */
+    QUIC_FRAME_SUBCONN,             /*Multipath, I*/
     N_QUIC_FRAMES
 };
 
@@ -68,6 +69,7 @@ enum quic_ft_bit {
     QUIC_FTBIT_ACK_FREQUENCY     = 1 << QUIC_FRAME_ACK_FREQUENCY,
     QUIC_FTBIT_TIMESTAMP         = 1 << QUIC_FRAME_TIMESTAMP,
     QUIC_FTBIT_DATAGRAM          = 1 << QUIC_FRAME_DATAGRAM,
+    QUIC_FTBIT_SUBCONN           = 1 << QUIC_FRAME_SUBCONN,
 };
 
 static const char * const frame_type_2_str[N_QUIC_FRAMES] = {
@@ -98,6 +100,7 @@ static const char * const frame_type_2_str[N_QUIC_FRAMES] = {
     [QUIC_FRAME_ACK_FREQUENCY]     =  "QUIC_FRAME_ACK_FREQUENCY",
     [QUIC_FRAME_TIMESTAMP]         =  "QUIC_FRAME_TIMESTAMP",
     [QUIC_FRAME_DATAGRAM]          =  "QUIC_FRAME_DATAGRAM",
+    [QUIC_FRAME_SUBCONN]           =  "QUIC_FRAME_SUBCONN",
 };
 
 #define QUIC_FRAME_PRELEN   (sizeof("QUIC_FRAME_"))
@@ -136,6 +139,7 @@ static const char * const frame_type_2_str[N_QUIC_FRAMES] = {
     QUIC_FRAME_SLEN(QUIC_FRAME_ACK_FREQUENCY)     + 1 + \
     QUIC_FRAME_SLEN(QUIC_FRAME_TIMESTAMP)         + 1 + \
     QUIC_FRAME_SLEN(QUIC_FRAME_DATAGRAM)          + 1 + \
+    QUIC_FRAME_SLEN(QUIC_FRAME_SUBCONN)           + 1 + \
     0
 
 
@@ -226,7 +230,8 @@ extern const char *const lsquic_pns2str[];
     |  QUIC_FTBIT_HANDSHAKE_DONE     \
     |  QUIC_FTBIT_ACK_FREQUENCY      \
     |  QUIC_FTBIT_TIMESTAMP          \
-    |  QUIC_FTBIT_CRYPTO             )
+    |  QUIC_FTBIT_CRYPTO             \
+    |  QUIC_FTBIT_SUBCONN            )
 
 /* [draft-ietf-quic-transport-24] Section 1.2 */
 #define IQUIC_FRAME_ACKABLE_MASK (  \

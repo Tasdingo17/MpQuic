@@ -1089,7 +1089,7 @@ struct lsquic_out_spec
     const struct sockaddr *local_sa;
     const struct sockaddr *dest_sa;
     void                  *peer_ctx;
-    lsquic_conn_ctx_t     *conn_ctx;  /* will be NULL when sending out the first batch of handshake packets */
+    lsquic_conn_single_ctx_t     *conn_ctx;  /* will be NULL when sending out the first batch of handshake packets */
     int                    ecn;       /* Valid values are 0 - 3.  See RFC 3168 */
 };
 
@@ -1159,7 +1159,7 @@ struct lsquic_packout_mem_if
     /**
      * Allocate buffer for sending.
      */
-    void *  (*pmi_allocate) (void *pmi_ctx, void *peer_ctx, lsquic_conn_ctx_t *, unsigned short sz,
+    void *  (*pmi_allocate) (void *pmi_ctx, void *peer_ctx, lsquic_conn_single_ctx_t *, unsigned short sz,
                                                                 char is_ipv6);
     /**
      * This function is used to release the allocated buffer after it is
@@ -1339,7 +1339,7 @@ struct lsquic_engine_api
      * Optional interface to control the creation of connection IDs
      */
     void                               (*ea_generate_scid)(void *ctx,
-                                lsquic_conn_t *, lsquic_cid_t *, unsigned);
+                                lsquic_conn_single_t *, lsquic_cid_t *, unsigned);
     /** Passed to ea_generate_scid() */
     void                                *ea_gen_scid_ctx;
 };
@@ -1370,11 +1370,21 @@ lsquic_engine_new (unsigned lsquic_engine_flags,
  * If `base_plpmtu' is set to zero, it is selected based on the
  * engine settings, QUIC version, and IP version.
  */
+lsquic_conn_single_t *
+lsquic_engine_connect_single (lsquic_engine_t *, enum lsquic_version,
+                       const struct sockaddr *local_sa,
+                       const struct sockaddr *peer_sa,
+                       void *peer_ctx, lsquic_conn_single_ctx_t *conn_ctx,
+                       const char *hostname, unsigned short base_plpmtu,
+                       const unsigned char *sess_resume, size_t sess_resume_len,
+                       /** Resumption token: optional */
+                       const unsigned char *token, size_t token_sz);
+
 lsquic_conn_t *
 lsquic_engine_connect (lsquic_engine_t *, enum lsquic_version,
                        const struct sockaddr *local_sa,
                        const struct sockaddr *peer_sa,
-                       void *peer_ctx, lsquic_conn_ctx_t *conn_ctx,
+                       void *peer_ctx, lsquic_conn_single_ctx_t *conn_ctx,
                        const char *hostname, unsigned short base_plpmtu,
                        const unsigned char *sess_resume, size_t sess_resume_len,
                        /** Resumption token: optional */
@@ -1435,7 +1445,7 @@ lsquic_engine_destroy (lsquic_engine_t *);
 
 /** Return max allowed outbound streams less current outbound streams. */
 unsigned
-lsquic_conn_n_avail_streams (const lsquic_conn_t *);
+lsquic_conn_n_avail_streams (const lsquic_conn_single_t *);
 
 /**
  * Create a new request stream.  This causes @ref on_new_stream() callback
@@ -1450,15 +1460,18 @@ lsquic_conn_n_avail_streams (const lsquic_conn_t *);
  * stream parameter set to NULL.
  */
 void
-lsquic_conn_make_stream (lsquic_conn_t *);
+lsquic_conn_make_stream_single (struct lsquic_conn_single *);  //ToHide
+
+void
+lsquic_conn_make_stream (lsquic_conn_t *);           //TODO
 
 /** Return number of delayed streams currently pending */
 unsigned
-lsquic_conn_n_pending_streams (const lsquic_conn_t *);
+lsquic_conn_n_pending_streams (const lsquic_conn_single_t *);
 
 /** Cancel `n' pending streams.  Returns new number of pending streams. */
 unsigned
-lsquic_conn_cancel_pending_streams (lsquic_conn_t *, unsigned n);
+lsquic_conn_cancel_pending_streams (lsquic_conn_single_t *, unsigned n);
 
 /**
  * Mark connection as going away: send GOAWAY frame and do not accept
@@ -1467,12 +1480,16 @@ lsquic_conn_cancel_pending_streams (lsquic_conn_t *, unsigned n);
  * Only applicable to HTTP/3 and GQUIC connections.  Otherwise a no-op.
  */
 void
-lsquic_conn_going_away (lsquic_conn_t *);
+lsquic_conn_going_away (lsquic_conn_single_t *);
 
 /**
  * This forces connection close.  on_conn_closed and on_close callbacks
  * will be called.
  */
+void
+lsquic_conn_close_single (lsquic_conn_single_t *);
+
+
 void
 lsquic_conn_close (lsquic_conn_t *);
 
@@ -1647,7 +1664,7 @@ lsquic_stream_get_hset (lsquic_stream_t *);
  * @retval -1   Stream push failed because of an internal error.
  */
 int
-lsquic_conn_push_stream (lsquic_conn_t *c, void *hdr_set, lsquic_stream_t *s,
+lsquic_conn_push_stream (lsquic_conn_single_t *c, void *hdr_set, lsquic_stream_t *s,
     const lsquic_http_headers_t *headers);
 
 /**
@@ -1655,7 +1672,7 @@ lsquic_conn_push_stream (lsquic_conn_t *c, void *hdr_set, lsquic_stream_t *s,
  * function always returns false in client mode.
  */
 int
-lsquic_conn_is_push_enabled (lsquic_conn_t *);
+lsquic_conn_is_push_enabled (lsquic_conn_single_t *);
 
 /** Possible values for how are 0, 1, and 2.  See shutdown(2). */
 int lsquic_stream_shutdown(lsquic_stream_t *s, int how);
@@ -1676,7 +1693,7 @@ lsquic_stream_has_unacked_data (lsquic_stream_t *s);
  * The caller releases the stack using sk_X509_free().
  */
 struct stack_st_X509 *
-lsquic_conn_get_server_cert_chain (lsquic_conn_t *);
+lsquic_conn_get_server_cert_chain (lsquic_conn_single_t *);
 
 /** Returns ID of the stream */
 lsquic_stream_id_t
@@ -1783,33 +1800,35 @@ lsquic_stream_set_http_prio (lsquic_stream_t *,
  * Get a pointer to the connection object.  Use it with lsquic_conn_*
  * functions.
  */
+lsquic_conn_single_t * lsquic_stream_conn_single(const lsquic_stream_t *s);
+
 lsquic_conn_t * lsquic_stream_conn(const lsquic_stream_t *s);
 
 /** Get connection ID */
 const lsquic_cid_t *
-lsquic_conn_id (const lsquic_conn_t *c);
+lsquic_conn_id (const lsquic_conn_single_t *c);
 
 /** Get pointer to the engine */
 lsquic_engine_t *
-lsquic_conn_get_engine (lsquic_conn_t *c);
+lsquic_conn_get_engine (lsquic_conn_single_t *c);
 
 int
-lsquic_conn_get_sockaddr(lsquic_conn_t *c,
+lsquic_conn_get_sockaddr(lsquic_conn_single_t *c,
                 const struct sockaddr **local, const struct sockaddr **peer);
 
 /* Returns previous value */
 int
-lsquic_conn_want_datagram_write (lsquic_conn_t *, int is_want);
+lsquic_conn_want_datagram_write (lsquic_conn_single_t *, int is_want);
 
 /* Get minimum datagram size.  By default, this value is zero. */
 size_t
-lsquic_conn_get_min_datagram_size (lsquic_conn_t *);
+lsquic_conn_get_min_datagram_size (lsquic_conn_single_t *);
 
 /* Set minimum datagram size.  This is the minumum value of the buffer passed
  * to the on_dg_write() callback.
  */
 int
-lsquic_conn_set_min_datagram_size (lsquic_conn_t *, size_t sz);
+lsquic_conn_set_min_datagram_size (lsquic_conn_single_t *, size_t sz);
 
 struct lsquic_logger_if {
     int     (*log_buf)(void *logger_ctx, const char *buf, size_t len);
@@ -1931,13 +1950,22 @@ lsquic_global_cleanup (void);
  * @see lsquic_version
  */
 enum lsquic_version
+lsquic_conn_quic_version_single (const lsquic_conn_single_t *c);
+
+enum lsquic_version
 lsquic_conn_quic_version (const lsquic_conn_t *c);
 
 /* Return keysize or -1 on error */
 int
+lsquic_conn_crypto_keysize_single (const lsquic_conn_single_t *c);
+
+int
 lsquic_conn_crypto_keysize (const lsquic_conn_t *c);
 
 /* Return algorithm keysize or -1 on error */
+int
+lsquic_conn_crypto_alg_keysize_single (const lsquic_conn_single_t *c);
+
 int
 lsquic_conn_crypto_alg_keysize (const lsquic_conn_t *c);
 
@@ -1948,9 +1976,12 @@ enum lsquic_crypto_ver
 };
 
 enum lsquic_crypto_ver
-lsquic_conn_crypto_ver (const lsquic_conn_t *c);
+lsquic_conn_crypto_ver (const lsquic_conn_single_t *c);
 
 /* Return cipher or NULL on error */
+const char *
+lsquic_conn_crypto_cipher_single (const lsquic_conn_single_t *c);
+
 const char *
 lsquic_conn_crypto_cipher (const lsquic_conn_t *c);
 
@@ -1973,6 +2004,9 @@ lsquic_engine_cooldown (lsquic_engine_t *);
 /**
  * Get user-supplied context associated with the connection.
  */
+lsquic_conn_single_ctx_t *
+lsquic_conn_get_ctx_single (const lsquic_conn_single_t *);
+
 lsquic_conn_ctx_t *
 lsquic_conn_get_ctx (const lsquic_conn_t *);
 
@@ -1980,23 +2014,26 @@ lsquic_conn_get_ctx (const lsquic_conn_t *);
  * Set user-supplied context associated with the connection.
  */
 void
+lsquic_conn_set_ctx_single(lsquic_conn_single_t *, lsquic_conn_single_ctx_t *);
+
+void
 lsquic_conn_set_ctx (lsquic_conn_t *, lsquic_conn_ctx_t *);
 
 /**
  * Get peer context associated with the connection.
  */
 void *
-lsquic_conn_get_peer_ctx (lsquic_conn_t *, const struct sockaddr *local_sa);
+lsquic_conn_get_peer_ctx (lsquic_conn_single_t *, const struct sockaddr *local_sa);
 
 /** Get SNI sent by the client */
 const char *
-lsquic_conn_get_sni (lsquic_conn_t *);
+lsquic_conn_get_sni (lsquic_conn_single_t *);
 
 /**
  * Abort connection.
  */
 void
-lsquic_conn_abort (lsquic_conn_t *);
+lsquic_conn_abort (lsquic_conn_single_t *);
 
 /**
  * Helper function: convert list of versions as specified in the argument
@@ -2078,13 +2115,13 @@ enum LSQUIC_CONN_STATUS
 };
 
 enum LSQUIC_CONN_STATUS
-lsquic_conn_status (lsquic_conn_t *, char *errbuf, size_t bufsz);
+lsquic_conn_status (lsquic_conn_single_t *, char *errbuf, size_t bufsz);
 
 extern const char *const
 lsquic_ver2str[N_LSQVER];
 
 /* Return connection associated with this SSL object */
-lsquic_conn_t *
+lsquic_conn_single_t *
 lsquic_ssl_to_conn (const struct ssl_st *);
 
 /* Return session resumption information that can be used on subsequenct

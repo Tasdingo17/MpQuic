@@ -108,7 +108,7 @@ attq_swap (struct attq *q, unsigned a, unsigned b)
 
 
 int
-lsquic_attq_add (struct attq *q, struct lsquic_conn *conn,
+lsquic_attq_add (struct attq *q, struct lsquic_conn_single *conn,
                                 lsquic_time_t advisory_time, enum ae_why why)
 {
     struct attq_elem *el, **heap;
@@ -154,10 +154,10 @@ lsquic_attq_add (struct attq *q, struct lsquic_conn *conn,
 }
 
 
-struct lsquic_conn *
+struct lsquic_conn_single *
 lsquic_attq_pop (struct attq *q, lsquic_time_t cutoff)
 {
-    struct lsquic_conn *conn;
+    struct lsquic_conn_single *conn;
     struct attq_elem *el;
 
     if (q->aq_nelem == 0)
@@ -204,7 +204,7 @@ attq_heapify (struct attq *q, unsigned i)
 
 
 void
-lsquic_attq_remove (struct attq *q, struct lsquic_conn *conn)
+lsquic_attq_remove (struct attq *q, struct lsquic_conn_single *conn)
 {
     struct attq_elem *el;
     unsigned idx;

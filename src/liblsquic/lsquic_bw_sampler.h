@@ -29,7 +29,7 @@ struct bandwidth
 
 struct bw_sampler
 {
-    struct lsquic_conn *bws_conn;
+    struct lsquic_conn_single *bws_conn;
     uint64_t            bws_total_sent,
                         bws_total_acked,
                         bws_total_lost;
@@ -62,7 +62,7 @@ struct bw_sample
 };
 
 int
-lsquic_bw_sampler_init (struct bw_sampler *, struct lsquic_conn *,
+lsquic_bw_sampler_init (struct bw_sampler *, struct lsquic_conn_single *,
                                                             enum quic_ft_bit);
 
 void

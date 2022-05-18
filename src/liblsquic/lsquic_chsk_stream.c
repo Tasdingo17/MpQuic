@@ -59,7 +59,7 @@ hsk_client_on_read (lsquic_stream_t *stream, struct lsquic_stream_ctx *sh)
         {
             LSQ_WARN("could not get buffer: %s", strerror(errno));
             lsquic_stream_wantread(stream, 0);
-            lsquic_conn_close(c_hsk->lconn);
+            lsquic_conn_close_single(c_hsk->lconn);
             return;
         }
         c_hsk->buf_sz  = 16 * 1024;
@@ -78,7 +78,7 @@ hsk_client_on_read (lsquic_stream_t *stream, struct lsquic_stream_ctx *sh)
         lsquic_mm_put_16k(c_hsk->mm, c_hsk->buf_in);
         c_hsk->buf_in = NULL;
         lsquic_stream_wantread(stream, 0);
-        lsquic_conn_close(c_hsk->lconn);
+        lsquic_conn_close_single(c_hsk->lconn);
         return;
     }
     c_hsk->buf_off += nread;
@@ -100,7 +100,7 @@ hsk_client_on_read (lsquic_stream_t *stream, struct lsquic_stream_ctx *sh)
             c_hsk->buf_in = NULL;
             lsquic_stream_wantread(stream, 0);
             c_hsk->lconn->cn_if->ci_hsk_done(c_hsk->lconn, LSQ_HSK_FAIL);
-            lsquic_conn_close(c_hsk->lconn);
+            lsquic_conn_close_single(c_hsk->lconn);
         }
         break;
     case DATA_NO_ERROR:
@@ -137,7 +137,7 @@ hsk_client_on_read (lsquic_stream_t *stream, struct lsquic_stream_ctx *sh)
         c_hsk->buf_in = NULL;
         lsquic_stream_wantread(stream, 0);
         c_hsk->lconn->cn_if->ci_hsk_done(c_hsk->lconn, LSQ_HSK_FAIL);
-        lsquic_conn_close(c_hsk->lconn);
+        lsquic_conn_close_single(c_hsk->lconn);
         break;
     }
 }
@@ -160,7 +160,7 @@ hsk_client_on_write (lsquic_stream_t *stream, struct lsquic_stream_ctx *sh)
     if (!buf)
     {
         LSQ_WARN("cannot allocate buffer: %s", strerror(errno));
-        lsquic_conn_close(c_hsk->lconn);
+        lsquic_conn_close_single(c_hsk->lconn);
         return;
     }
     len = 4 * 1024;
@@ -170,7 +170,7 @@ hsk_client_on_write (lsquic_stream_t *stream, struct lsquic_stream_ctx *sh)
     {
         LSQ_WARN("cannot create CHLO message");
         lsquic_mm_put_4k(c_hsk->mm, buf);
-        lsquic_conn_close(c_hsk->lconn);
+        lsquic_conn_close_single(c_hsk->lconn);
         return;
     }
 

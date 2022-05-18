@@ -151,7 +151,7 @@ qdh_begin_out (struct qpack_dec_hdl *qdh)
 
 
 int
-lsquic_qdh_init (struct qpack_dec_hdl *qdh, struct lsquic_conn *conn,
+lsquic_qdh_init (struct qpack_dec_hdl *qdh, struct lsquic_conn_single *conn,
                     int is_server, const struct lsquic_engine_public *enpub,
                     unsigned dyn_table_size, unsigned max_risked_streams)
 {

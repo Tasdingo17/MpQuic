@@ -10,7 +10,7 @@
 #ifndef LSQUIC_QDEC_HDL_H
 #define LSQUIC_QDEC_HDL_H 1
 
-struct lsquic_conn;
+struct lsquic_conn_single;
 struct lsquic_stream;
 struct lsquic_stream_if;
 struct lsquic_engine_public;
@@ -19,7 +19,7 @@ struct qpack_exp_record;
 
 struct qpack_dec_hdl
 {
-    struct lsquic_conn      *qdh_conn;
+    struct lsquic_conn_single      *qdh_conn;
     enum {
         QDH_INITIALIZED     = 1 << 0,
         QDH_PUSH_PROMISE    = 1 << 1,
@@ -41,7 +41,7 @@ struct qpack_dec_hdl
 };
 
 int
-lsquic_qdh_init (struct qpack_dec_hdl *, struct lsquic_conn *,
+lsquic_qdh_init (struct qpack_dec_hdl *, struct lsquic_conn_single *,
                     int is_server, const struct lsquic_engine_public *,
                     unsigned dyn_table_size, unsigned max_risked_streams);
 

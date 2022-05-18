@@ -10,7 +10,7 @@ struct lsquic_packet_out;
 struct lsquic_packet_in;
 struct stream_wrapper;
 struct ver_neg;
-struct lsquic_conn;
+struct lsquic_conn_single;
 struct transport_params;
 struct lsquic_cid;
 struct ssl_stream_method_st;
@@ -109,11 +109,11 @@ struct enc_session_funcs_common
      */
     enum enc_packout
     (*esf_encrypt_packet) (enc_session_t *, const struct lsquic_engine_public *,
-        struct lsquic_conn *, struct lsquic_packet_out *);
+        struct lsquic_conn_single *, struct lsquic_packet_out *);
 
     enum dec_packin
     (*esf_decrypt_packet)(enc_session_t *, struct lsquic_engine_public *,
-        const struct lsquic_conn *, struct lsquic_packet_in *);
+        const struct lsquic_conn_single *, struct lsquic_packet_in *);
 
     struct stack_st_X509 *
     (*esf_get_server_cert_chain) (enc_session_t *);
@@ -128,7 +128,7 @@ struct enc_session_funcs_common
     (*esf_is_sess_resume_enabled) (enc_session_t *);
 
     void
-    (*esf_set_conn) (enc_session_t *, struct lsquic_conn *);
+    (*esf_set_conn) (enc_session_t *, struct lsquic_conn_single *);
 
     /* Optional.  This function gets called after packets are encrypted,
      * batched, and are about to be sent.
@@ -164,7 +164,7 @@ struct enc_session_funcs_gquic
 
     /* Create server session */
     enc_session_t *
-    (*esf_create_server) (struct lsquic_conn *,
+    (*esf_create_server) (struct lsquic_conn_single *,
                         lsquic_cid_t cid, struct lsquic_engine_public *);
 
     /* out_len should have init value as the max length of out */
@@ -221,7 +221,7 @@ struct enc_session_funcs_gquic
 
     /* Create client session */
     enc_session_t *
-    (*esf_create_client) (struct lsquic_conn *, const char *domain,
+    (*esf_create_client) (struct lsquic_conn_single *, const char *domain,
                             lsquic_cid_t cid,
                                     struct lsquic_engine_public *,
                                     const unsigned char *, size_t);
@@ -244,7 +244,7 @@ struct enc_session_funcs_gquic
      * is called.
      */
     void (*esf_maybe_dispatch_sess_resume) (enc_session_t *,
-            void (*cb)(struct lsquic_conn *, const unsigned char *, size_t));
+            void (*cb)(struct lsquic_conn_single *, const unsigned char *, size_t));
 
     void (*esf_reset_cid) (enc_session_t *, const lsquic_cid_t *);
 };
@@ -265,7 +265,7 @@ struct enc_session_funcs_iquic
 {
     enc_session_t *
     (*esfi_create_client) (const char *domain, struct lsquic_engine_public *,
-                           struct lsquic_conn *, const struct lsquic_cid *,
+                           struct lsquic_conn_single *, const struct lsquic_cid *,
                            const struct ver_neg *, void *(crypto_streams)[4],
                            const struct crypto_stream_if *,
                            const unsigned char *, size_t,
@@ -295,7 +295,7 @@ struct enc_session_funcs_iquic
                            const struct crypto_stream_if *);
 
     enc_session_t *
-    (*esfi_create_server) (struct lsquic_engine_public *, struct lsquic_conn *,
+    (*esfi_create_server) (struct lsquic_engine_public *, struct lsquic_conn_single *,
                                                     const struct lsquic_cid *,
                            void *(crypto_streams)[4],
                            const struct crypto_stream_if *,

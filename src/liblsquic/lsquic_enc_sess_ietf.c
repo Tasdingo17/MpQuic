@@ -205,7 +205,7 @@ struct enc_sess_iquic
 {
     struct lsquic_engine_public
                         *esi_enpub;
-    struct lsquic_conn  *esi_conn;
+    struct lsquic_conn_single  *esi_conn;
     void               **esi_streams;
     const struct crypto_stream_if *esi_cryst_if;
     const struct ver_neg
@@ -514,7 +514,7 @@ gen_trans_params (struct enc_sess_iquic *enc_sess, unsigned char *buf,
     }
     if (enc_sess->esi_flags & ESI_SERVER)
     {
-        const struct lsquic_conn *const lconn = enc_sess->esi_conn;
+        const struct lsquic_conn_single *const lconn = enc_sess->esi_conn;
 
         params.tp_set |= 1 << TPI_STATELESS_RESET_TOKEN;
         lsquic_tg_generate_sreset(enc_sess->esi_enpub->enp_tokgen,
@@ -528,7 +528,7 @@ gen_trans_params (struct enc_sess_iquic *enc_sess, unsigned char *buf,
 #if LSQUIC_PREFERRED_ADDR
         char addr_buf[INET6_ADDRSTRLEN + 6 /* port */ + 1];
         const char *s, *colon;
-        struct lsquic_conn *conn;
+        struct lsquic_conn_single *conn;
         struct conn_cid_elem *cce;
         unsigned seqno;
         s = getenv("LSQUIC_PREFERRED_ADDR4");
@@ -808,7 +808,7 @@ init_frals (struct enc_sess_iquic *enc_sess)
 
 static enc_session_t *
 iquic_esfi_create_client (const char *hostname,
-            struct lsquic_engine_public *enpub, struct lsquic_conn *lconn,
+            struct lsquic_engine_public *enpub, struct lsquic_conn_single *lconn,
             const lsquic_cid_t *dcid, const struct ver_neg *ver_neg,
             void *crypto_streams[4], const struct crypto_stream_if *cryst_if,
             const unsigned char *sess_resume, size_t sess_resume_sz,
@@ -1014,7 +1014,7 @@ iquic_esfi_set_streams (enc_session_t *enc_session_p,
 
 static enc_session_t *
 iquic_esfi_create_server (struct lsquic_engine_public *enpub,
-                    struct lsquic_conn *lconn, const lsquic_cid_t *first_dcid,
+                    struct lsquic_conn_single *lconn, const lsquic_cid_t *first_dcid,
                     void *(crypto_streams)[4],
                     const struct crypto_stream_if *cryst_if,
                     const struct lsquic_cid *odcid,
@@ -1334,7 +1334,7 @@ iquic_lookup_cert (SSL *ssl, void *arg)
 
 
 static void
-iquic_esf_set_conn (enc_session_t *enc_session_p, struct lsquic_conn *lconn)
+iquic_esf_set_conn (enc_session_t *enc_session_p, struct lsquic_conn_single *lconn)
 {
     struct enc_sess_iquic *const enc_sess = enc_session_p;
     enc_sess->esi_conn = lconn;
@@ -1536,7 +1536,7 @@ iquic_new_session_cb (SSL *ssl, SSL_SESSION *session)
     if (0 == iquic_ssl_sess_to_resume_info(enc_sess, ssl, session, &buf,
                                                                     &buf_sz))
         enc_sess->esi_enpub->enp_stream_if->on_sess_resume_info(
-                                            enc_sess->esi_conn, buf, buf_sz);
+                                            enc_sess->esi_conn->cn_main_conn, buf, buf_sz);
     free(buf);
     enc_sess->esi_flags &= ~ESI_WANT_TICKET;
     lsquic_alarmset_unset(enc_sess->esi_alset, AL_SESS_TICKET);
@@ -2052,11 +2052,11 @@ static const enum enc_level pns2enc_level[2][N_PNS] =
 
 static enum enc_packout
 iquic_esf_encrypt_packet (enc_session_t *enc_session_p,
-    const struct lsquic_engine_public *enpub, struct lsquic_conn *lconn_UNUSED,
+    const struct lsquic_engine_public *enpub, struct lsquic_conn_single *lconn_UNUSED,
     struct lsquic_packet_out *packet_out)
 {
     struct enc_sess_iquic *const enc_sess = enc_session_p;
-    struct lsquic_conn *const lconn = enc_sess->esi_conn;
+    struct lsquic_conn_single *const lconn = enc_sess->esi_conn;
     unsigned char *dst;
     const struct crypto_ctx_pair *pair;
     const struct crypto_ctx *crypto_ctx;
@@ -2226,7 +2226,7 @@ select_ku_label (const struct enc_sess_iquic *enc_sess)
 
 static enum dec_packin
 iquic_esf_decrypt_packet (enc_session_t *enc_session_p,
-        struct lsquic_engine_public *enpub, const struct lsquic_conn *lconn,
+        struct lsquic_engine_public *enpub, const struct lsquic_conn_single *lconn,
         struct lsquic_packet_in *packet_in)
 {
     struct enc_sess_iquic *const enc_sess = enc_session_p;
@@ -2538,9 +2538,11 @@ iquic_esf_get_server_cert_chain (enc_session_t *enc_session_p)
 
 static const char *
 iquic_esf_cipher (enc_session_t *enc_session_p)
-{
+{   
     struct enc_sess_iquic *const enc_sess = enc_session_p;
     const SSL_CIPHER *cipher;
+        
+    LSQ_DEBUG("In iquic_esf_cipher");
 
     if (enc_sess->esi_flags & ESI_CACHED_INFO)
         return enc_sess->esi_cached_info.cipher_name;
@@ -3454,7 +3456,7 @@ lsquic_enc_sess_ietf_gen_quic_ctx (
 }
 
 
-struct lsquic_conn *
+struct lsquic_conn_single *
 lsquic_ssl_to_conn (const struct ssl_st *ssl)
 {
     struct enc_sess_iquic *enc_sess;

@@ -30,7 +30,7 @@
 
 void
 lsquic_packet_resize_init (struct packet_resize_ctx *prctx,
-    struct lsquic_engine_public *enpub, struct lsquic_conn *lconn, void *ctx,
+    struct lsquic_engine_public *enpub, struct lsquic_conn_single *lconn, void *ctx,
     const struct packet_resize_if *pr_if)
 {
     memset(prctx, 0, sizeof(*prctx));

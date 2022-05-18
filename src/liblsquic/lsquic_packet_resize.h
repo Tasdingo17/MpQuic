@@ -7,7 +7,7 @@
 #define LSQUIC_PACKET_RESIZE_H 1
 
 struct lsquic_packet_out;
-struct lsquic_conn;
+struct lsquic_conn_single;
 struct frame_rec;
 struct lsquic_engine_public;
 
@@ -25,7 +25,7 @@ struct packet_resize_if
 
 struct packet_resize_ctx
 {
-    const struct lsquic_conn        *prc_conn;
+    const struct lsquic_conn_single *prc_conn;
     void                            *prc_data;      /* First arg to prc_pri */
     const struct packet_resize_if   *prc_pri;
     struct lsquic_engine_public     *prc_enpub;
@@ -41,7 +41,7 @@ struct packet_resize_ctx
 
 void
 lsquic_packet_resize_init (struct packet_resize_ctx *,
-    struct lsquic_engine_public *, struct lsquic_conn *, void *ctx,
+    struct lsquic_engine_public *, struct lsquic_conn_single *, void *ctx,
     const struct packet_resize_if *);
 
 struct lsquic_packet_out *

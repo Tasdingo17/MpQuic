@@ -2,10 +2,10 @@
 #ifndef LSQUIC_FULL_CONN_H
 #define LSQUIC_FULL_CONN_H
 
-struct lsquic_conn;
+struct lsquic_conn_single;
 struct lsquic_engine_public;
 
-struct lsquic_conn *
+struct lsquic_conn_single *
 lsquic_gquic_full_conn_client_new (struct lsquic_engine_public *,
                unsigned versions,
                unsigned flags /* Only FC_SERVER and FC_HTTP */,
@@ -13,7 +13,7 @@ lsquic_gquic_full_conn_client_new (struct lsquic_engine_public *,
                int is_ipv4,
                const unsigned char *sess_resume, size_t sess_resume_len);
 
-struct lsquic_conn *
+struct lsquic_conn_single *
 lsquic_ietf_full_conn_client_new (struct lsquic_engine_public *,
            unsigned versions,
                unsigned flags /* Only FC_SERVER and FC_HTTP */,
@@ -21,20 +21,20 @@ lsquic_ietf_full_conn_client_new (struct lsquic_engine_public *,
            const unsigned char *sess_resume, size_t,
            const unsigned char *token, size_t, void* peer_ctx);
 
-typedef struct lsquic_conn *
+typedef struct lsquic_conn_single *
 (*server_conn_ctor_f) (struct lsquic_engine_public *,
                unsigned flags /* Only FC_SERVER and FC_HTTP */,
-               struct lsquic_conn *mini_conn);
+               struct lsquic_conn_single *mini_conn);
 
-struct lsquic_conn *
+struct lsquic_conn_single *
 lsquic_gquic_full_conn_server_new (struct lsquic_engine_public *,
                unsigned flags /* Only FC_SERVER and FC_HTTP */,
-               struct lsquic_conn *mini_conn);
+               struct lsquic_conn_single *mini_conn);
 
-struct lsquic_conn *
+struct lsquic_conn_single *
 lsquic_ietf_full_conn_server_new (struct lsquic_engine_public *,
                unsigned flags /* Only FC_SERVER and FC_HTTP */,
-               struct lsquic_conn *mini_conn);
+               struct lsquic_conn_single *mini_conn);
 
 struct dcid_elem
 {
@@ -55,6 +55,6 @@ struct dcid_elem
 };
 
 int
-lsquic_gquic_full_conn_srej (struct lsquic_conn *);
+lsquic_gquic_full_conn_srej (struct lsquic_conn_single *);
 
 #endif

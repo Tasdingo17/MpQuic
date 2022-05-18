@@ -6,7 +6,7 @@
 #ifndef LSQUIC_MINI_CONN_IETF_H
 #define LSQUIC_MINI_CONN_IETF_H 1
 
-struct lsquic_conn;
+struct lsquic_conn_single;
 struct lsquic_engine_public;
 struct lsquic_packet_in;
 
@@ -36,7 +36,7 @@ typedef uint64_t packno_set_t;
 
 struct ietf_mini_conn
 {
-    struct lsquic_conn              imc_conn;
+    struct lsquic_conn_single       imc_conn;
     struct conn_cid_elem            imc_cces[3];
     struct lsquic_engine_public    *imc_enpub;
     lsquic_time_t                   imc_created;
@@ -126,7 +126,7 @@ struct ietf_mini_conn
  */
 #define IMICO_MAX_BUFFERED_CRYPTO (6u * 1024u)
 
-struct lsquic_conn *
+struct lsquic_conn_single *
 lsquic_mini_conn_ietf_new (struct lsquic_engine_public *,
                const struct lsquic_packet_in *,
                enum lsquic_version, int is_ipv4, const struct lsquic_cid *,

@@ -5,11 +5,11 @@
 #include "lsquic_shared_support.h"
 
 struct lsquic_hset_if;
-struct lsquic_conn;
+struct lsquic_conn_single;
 
 struct http1x_ctor_ctx
 {
-    const struct lsquic_conn *conn;                /* Used for logging */
+    const struct lsquic_conn_single *conn;                /* Used for logging */
     unsigned        max_headers_sz;
     int             is_server;
 };

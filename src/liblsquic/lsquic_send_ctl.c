@@ -264,7 +264,7 @@ static void
 retx_alarm_rings (enum alarm_id al_id, void *ctx, lsquic_time_t expiry, lsquic_time_t now)
 {
     lsquic_send_ctl_t *ctl = ctx;
-    struct lsquic_conn *const lconn = ctl->sc_conn_pub->lconn;
+    struct lsquic_conn_single *const lconn = ctl->sc_conn_pub->lconn;
     lsquic_packet_out_t *packet_out;
     enum packnum_space pns;
     enum retx_mode rm;
@@ -1158,7 +1158,7 @@ static void
 send_ctl_mtu_probe_acked (struct lsquic_send_ctl *ctl,
                                         struct lsquic_packet_out *packet_out)
 {
-    struct lsquic_conn *const lconn = ctl->sc_conn_pub->lconn;
+    struct lsquic_conn_single *const lconn = ctl->sc_conn_pub->lconn;
 
     LSQ_DEBUG("MTU probe in packet %"PRIu64" has been ACKed",
                                                         packet_out->po_packno);
@@ -1454,7 +1454,7 @@ lsquic_send_ctl_smallest_unacked (lsquic_send_ctl_t *ctl)
 static struct lsquic_packet_out *
 send_ctl_next_lost (lsquic_send_ctl_t *ctl)
 {
-    struct lsquic_conn *const lconn = ctl->sc_conn_pub->lconn;
+    struct lsquic_conn_single *const lconn = ctl->sc_conn_pub->lconn;
     struct lsquic_packet_out *lost_packet;
 
   get_next_lost:
@@ -2773,7 +2773,7 @@ send_ctl_get_buffered_packet (lsquic_send_ctl_t *ctl,
 {
     struct buf_packet_q *const packet_q =
                                     &ctl->sc_buffered_packets[packet_type];
-    struct lsquic_conn *const lconn = ctl->sc_conn_pub->lconn;
+    struct lsquic_conn_single *const lconn = ctl->sc_conn_pub->lconn;
     lsquic_packet_out_t *packet_out;
     enum packno_bits bits;
     enum { AA_STEAL, AA_GENERATE, AA_NONE, } ack_action;
@@ -3004,7 +3004,7 @@ split_buffered_packet (lsquic_send_ctl_t *ctl,
 {
     struct buf_packet_q *const packet_q =
                                     &ctl->sc_buffered_packets[packet_type];
-    struct lsquic_conn *const lconn = ctl->sc_conn_pub->lconn;
+    struct lsquic_conn_single *const lconn = ctl->sc_conn_pub->lconn;
     struct lsquic_packet_out *new;
     struct packet_resize_ctx prctx;
     struct resize_one_packet_ctx one_ctx = {
@@ -3201,7 +3201,7 @@ static int
 split_lost_packet (struct lsquic_send_ctl *ctl,
                                 struct lsquic_packet_out *const packet_out)
 {
-    struct lsquic_conn *const lconn = ctl->sc_conn_pub->lconn;
+    struct lsquic_conn_single *const lconn = ctl->sc_conn_pub->lconn;
     struct lsquic_packet_out *new;
     struct packet_resize_ctx prctx;
     struct resize_one_packet_ctx one_ctx = {
@@ -3250,7 +3250,7 @@ lsquic_send_ctl_retry (struct lsquic_send_ctl *ctl,
                                 const unsigned char *token, size_t token_sz)
 {
     struct lsquic_packet_out *packet_out, *next;
-    struct lsquic_conn *const lconn = ctl->sc_conn_pub->lconn;
+    struct lsquic_conn_single *const lconn = ctl->sc_conn_pub->lconn;
     size_t sz;
 
     if (token_sz >= 1ull << (sizeof(packet_out->po_token_len) * 8))
@@ -3489,7 +3489,7 @@ static void
 send_ctl_resize_q (struct lsquic_send_ctl *ctl, struct lsquic_packets_tailq *q,
                                             const struct network_path *const path)
 {
-    struct lsquic_conn *const lconn = ctl->sc_conn_pub->lconn;
+    struct lsquic_conn_single *const lconn = ctl->sc_conn_pub->lconn;
     struct lsquic_packet_out *next, *packet_out;
     struct resize_many_packet_ctx many_ctx;
     struct packet_resize_ctx prctx;
@@ -3674,7 +3674,7 @@ lsquic_send_ctl_cancel_path_verification (struct lsquic_send_ctl *ctl,
 void
 lsquic_send_ctl_resize (struct lsquic_send_ctl *ctl)
 {
-    struct lsquic_conn *const lconn = ctl->sc_conn_pub->lconn;
+    struct lsquic_conn_single *const lconn = ctl->sc_conn_pub->lconn;
     struct lsquic_packet_out *packet_out;
     struct lsquic_packets_tailq *const *q;
     struct lsquic_packets_tailq *const queues[] = {
@@ -3826,7 +3826,7 @@ void
 lsquic_send_ctl_snapshot (struct lsquic_send_ctl *ctl,
                                             struct send_ctl_state *ctl_state)
 {
-    struct lsquic_conn *const lconn = ctl->sc_conn_pub->lconn;
+    struct lsquic_conn_single *const lconn = ctl->sc_conn_pub->lconn;
     int buffered, repace;
 
     buffered = !lsquic_send_ctl_schedule_stream_packets_immediately(ctl);
@@ -3869,7 +3869,7 @@ lsquic_send_ctl_rollback (struct lsquic_send_ctl *ctl,
                 struct send_ctl_state *ctl_state, const struct iovec *last_iov,
                 size_t shortfall)
 {
-    struct lsquic_conn *const lconn = ctl->sc_conn_pub->lconn;
+    struct lsquic_conn_single *const lconn = ctl->sc_conn_pub->lconn;
     struct lsquic_packet_out *packet_out, *next;
     struct lsquic_packets_tailq *packets;
     struct stream_frame stream_frame;

@@ -21,6 +21,12 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <netdb.h>
+
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
 #endif
 
 #ifndef NDEBUG
@@ -88,8 +94,6 @@
 #include "lsquic_ietf.h"
 #include "lsquic_handshake.h"
 
-#include "lsquic_multiconn.h"
-
 #define LSQUIC_LOGGER_MODULE LSQLM_ENGINE
 #include "lsquic_logger.h"
 
@@ -112,32 +116,32 @@
 
 struct out_batch
 {
-    lsquic_conn_t           *conns  [MAX_OUT_BATCH_SIZE];
+    lsquic_conn_single_t           *conns  [MAX_OUT_BATCH_SIZE];
     struct lsquic_out_spec   outs   [MAX_OUT_BATCH_SIZE];
     unsigned                 pack_off[MAX_OUT_BATCH_SIZE];
     lsquic_packet_out_t     *packets[MAX_OUT_BATCH_SIZE * 2];
     struct iovec             iov    [MAX_OUT_BATCH_SIZE * 2];
 };
 
-typedef struct lsquic_conn * (*conn_iter_f)(struct lsquic_engine *);
+typedef struct lsquic_conn_single * (*conn_iter_f)(struct lsquic_engine *);
 
 static void
 process_connections (struct lsquic_engine *engine, conn_iter_f iter,
                      lsquic_time_t now);
 
 static void
-engine_incref_conn (lsquic_conn_t *conn, enum lsquic_conn_flags flag);
+engine_incref_conn (lsquic_conn_single_t *conn, enum lsquic_conn_single_flags flag);
 
-static lsquic_conn_t *
-engine_decref_conn (lsquic_engine_t *engine, lsquic_conn_t *conn,
-                                        enum lsquic_conn_flags flag);
+static lsquic_conn_single_t *
+engine_decref_conn (lsquic_engine_t *engine, lsquic_conn_single_t *conn,
+                                        enum lsquic_conn_single_flags flag);
 
 static void
-force_close_conn (lsquic_engine_t *engine, lsquic_conn_t *conn);
+force_close_conn (lsquic_engine_t *engine, lsquic_conn_single_t *conn);
 
 #if LSQUIC_CONN_STATS
 static void
-update_busy_detector (struct lsquic_engine *, struct lsquic_conn *, int);
+update_busy_detector (struct lsquic_engine *, struct lsquic_conn_single *, int);
 #endif
 
 #if LSQUIC_COUNT_ENGINE_CALLS
@@ -250,7 +254,7 @@ struct lsquic_engine
     struct eng_hist                    history;
     unsigned                           batch_size;
     unsigned                           min_batch_size, max_batch_size;
-    struct lsquic_conn                *curr_conn;
+    struct lsquic_conn_single                *curr_conn;
     struct pr_queue                   *pr_queue;
     struct attq                       *attq;
     /* Track time last time a packet was sent to give new connections
@@ -289,7 +293,7 @@ struct lsquic_engine
     struct {
         uint16_t            immed_ticks;    /* bitmask */
 #define MAX_IMMED_TICKS UINT16_MAX
-        struct lsquic_conn *last_conn,      /* from last call */
+        struct lsquic_conn_single *last_conn,      /* from last call */
                            *pin_conn,       /* last connection with packet in */
                            *current;        /* currently busy connection */
         lsquic_time_t       last_log;
@@ -506,7 +510,7 @@ free_packet (void *ctx, void *conn_ctx, void *packet_data, char is_ipv6)
 
 
 static void *
-malloc_buf (void *ctx, void *peer_ctx, lsquic_conn_ctx_t *conn_ctx, unsigned short size, char is_ipv6)
+malloc_buf (void *ctx, void *peer_ctx, lsquic_conn_single_ctx_t *conn_ctx, unsigned short size, char is_ipv6)
 {
     return malloc(size);
 }
@@ -839,7 +843,7 @@ shrink_batch_size (struct lsquic_engine *engine)
 
 struct cce_cid_iter
 {
-    const struct lsquic_conn   *conn;
+    const struct lsquic_conn_single   *conn;
     unsigned                    todo, n;
 };
 
@@ -865,7 +869,7 @@ cce_iter_next (struct cce_cid_iter *citer)
 
 
 static struct conn_cid_elem *
-cce_iter_first (struct cce_cid_iter *citer, const struct lsquic_conn *conn)
+cce_iter_first (struct cce_cid_iter *citer, const struct lsquic_conn_single *conn)
 {
     citer->conn = conn;
     citer->todo = conn->cn_cces_mask;
@@ -876,7 +880,7 @@ cce_iter_first (struct cce_cid_iter *citer, const struct lsquic_conn *conn)
 
 #if LSQUIC_CONN_STATS
 void
-update_stats_sum (struct lsquic_engine *engine, struct lsquic_conn *conn)
+update_stats_sum (struct lsquic_engine *engine, struct lsquic_conn_single *conn)
 {
     unsigned long *const dst = (unsigned long *) &engine->conn_stats_sum;
     const unsigned long *src;
@@ -900,7 +904,7 @@ update_stats_sum (struct lsquic_engine *engine, struct lsquic_conn *conn)
  * really destroyed.
  */
 static void
-destroy_conn (struct lsquic_engine *engine, struct lsquic_conn *conn,
+destroy_conn (struct lsquic_engine *engine, struct lsquic_conn_single *conn,
                                                             lsquic_time_t now)
 {
     struct cce_cid_iter citer;
@@ -1002,7 +1006,7 @@ maybe_grow_conn_heaps (struct lsquic_engine *engine)
 
 
 static void
-remove_cces_from_hash (struct lsquic_hash *hash, struct lsquic_conn *conn,
+remove_cces_from_hash (struct lsquic_hash *hash, struct lsquic_conn_single *conn,
                                                                 unsigned todo)
 {
     unsigned n;
@@ -1015,7 +1019,7 @@ remove_cces_from_hash (struct lsquic_hash *hash, struct lsquic_conn *conn,
 
 
 static void
-remove_all_cces_from_hash (struct lsquic_hash *hash, struct lsquic_conn *conn)
+remove_all_cces_from_hash (struct lsquic_hash *hash, struct lsquic_conn_single *conn)
 {
     remove_cces_from_hash(hash, conn, conn->cn_cces_mask);
 }
@@ -1026,7 +1030,7 @@ cub_add (struct cid_update_batch *cub, const lsquic_cid_t *cid, void *peer_ctx);
 
 
 static int
-insert_conn_into_hash (struct lsquic_engine *engine, struct lsquic_conn *conn,
+insert_conn_into_hash (struct lsquic_engine *engine, struct lsquic_conn_single *conn,
                                                                 void *peer_ctx)
 {
     struct conn_cid_elem *cce;
@@ -1057,24 +1061,27 @@ insert_conn_into_hash (struct lsquic_engine *engine, struct lsquic_conn *conn,
 }
 
 
-static lsquic_conn_t *
-new_full_conn_server (lsquic_engine_t *engine, lsquic_conn_t *mini_conn,
+static lsquic_conn_single_t *
+new_full_conn_server (lsquic_engine_t *engine, lsquic_conn_single_t *mini_conn,
                                                         lsquic_time_t now)
 {
     const lsquic_cid_t *cid;
     server_conn_ctor_f ctor;
-    lsquic_conn_t *conn;
+    lsquic_conn_single_t *conn;
     unsigned flags;
     if (0 != maybe_grow_conn_heaps(engine))
         return NULL;
     flags = engine->flags & (ENG_SERVER|ENG_HTTP);
 
-    if (mini_conn->cn_flags & LSCONN_IETF)
+    if (mini_conn->cn_flags & LSCONN_IETF){
         ctor = lsquic_ietf_full_conn_server_new;
-    else
+    } else {
         ctor = lsquic_gquic_full_conn_server_new;
+    }
 
+    LSQ_INFO("BEFORE conn = ctor(&engine->pub, flags, mini_conn);");
     conn = ctor(&engine->pub, flags, mini_conn);
+    LSQ_INFO("AFTER conn = ctor(&engine->pub, flags, mini_conn);");
     if (!conn)
     {
         /* Otherwise, full_conn_server_new prints its own warnings */
@@ -1192,7 +1199,7 @@ find_conn_by_addr (struct lsquic_hash *hash, const struct sockaddr *sa)
  * is no match, the packet is dropped.
  */
 static int
-dcid_checks_out (const struct lsquic_conn *conn, const lsquic_cid_t *dcid)
+dcid_checks_out (const struct lsquic_conn_single *conn, const lsquic_cid_t *dcid)
 {
     const struct conn_cid_elem *cce;
 
@@ -1213,12 +1220,12 @@ dcid_checks_out (const struct lsquic_conn *conn, const lsquic_cid_t *dcid)
 }
 
 
-static lsquic_conn_t *
+static lsquic_conn_single_t *
 find_conn (lsquic_engine_t *engine, lsquic_packet_in_t *packet_in,
          struct packin_parse_state *ppstate, const struct sockaddr *sa_local)
 {
     struct lsquic_hash_elem *el;
-    lsquic_conn_t *conn;
+    lsquic_conn_single_t *conn;
 
     if (engine->flags & ENG_CONNS_BY_ADDR)
     {
@@ -1266,14 +1273,14 @@ static const char *const puty2str[] = {
 };
 
 
-static lsquic_conn_t *
+static lsquic_conn_single_t *
 find_or_create_conn (lsquic_engine_t *engine, lsquic_packet_in_t *packet_in,
          struct packin_parse_state *ppstate, const struct sockaddr *sa_local,
          const struct sockaddr *sa_peer, void *peer_ctx, size_t packet_in_size)
 {
     struct lsquic_hash_elem *el;
     struct purga_el *puel;
-    lsquic_conn_t *conn;
+    lsquic_conn_single_t *conn;
 
     if (!(packet_in->pi_flags & PI_CONN_ID))
     {
@@ -1406,12 +1413,12 @@ find_or_create_conn (lsquic_engine_t *engine, lsquic_packet_in_t *packet_in,
 }
 
 
-lsquic_conn_t *
+lsquic_conn_single_t *
 lsquic_engine_find_conn (const struct lsquic_engine_public *engine, 
                          const lsquic_cid_t *cid)
 {
     struct lsquic_hash_elem *el;
-    lsquic_conn_t *conn = NULL;
+    lsquic_conn_single_t *conn = NULL;
     el = lsquic_hash_find(engine->enp_engine->conns_hash, cid->idbuf, cid->len);
 
     if (el)
@@ -1425,7 +1432,7 @@ __attribute__((weak))
 #endif
 void
 lsquic_engine_add_conn_to_tickable (struct lsquic_engine_public *enpub,
-                                    lsquic_conn_t *conn)
+                                    lsquic_conn_single_t *conn)
 {
     if (0 == (enpub->enp_flags & ENPUB_PROC) &&
         0 == (conn->cn_flags & (LSCONN_TICKABLE|LSCONN_NEVER_TICKABLE)))
@@ -1439,7 +1446,7 @@ lsquic_engine_add_conn_to_tickable (struct lsquic_engine_public *enpub,
 
 void
 lsquic_engine_add_conn_to_attq (struct lsquic_engine_public *enpub,
-                    lsquic_conn_t *conn, lsquic_time_t tick_time, unsigned why)
+                    lsquic_conn_single_t *conn, lsquic_time_t tick_time, unsigned why)
 {
     lsquic_engine_t *const engine = (lsquic_engine_t *) enpub;
     if (conn->cn_flags & LSCONN_TICKABLE)
@@ -1451,7 +1458,7 @@ lsquic_engine_add_conn_to_attq (struct lsquic_engine_public *enpub,
     }
     else if (conn->cn_flags & LSCONN_ATTQ)
     {
-        if (lsquic_conn_adv_time(conn) != tick_time)
+        if (lsquic_conn_single_adv_time(conn) != tick_time)
         {
             lsquic_attq_remove(engine->attq, conn);
             if (0 != lsquic_attq_add(engine->attq, conn, tick_time, why))
@@ -1463,12 +1470,12 @@ lsquic_engine_add_conn_to_attq (struct lsquic_engine_public *enpub,
 }
 
 
-static struct lsquic_conn *
+static struct lsquic_conn_single *
 find_conn_by_srst (struct lsquic_engine *engine,
                                     const struct lsquic_packet_in *packet_in)
 {
     struct lsquic_hash_elem *el;
-    struct lsquic_conn *conn;
+    struct lsquic_conn_single *conn;
 
     if (packet_in->pi_data_sz < IQUIC_MIN_SRST_SIZE
                             || (packet_in->pi_data[0] & 0xC0) != 0x40)
@@ -1493,7 +1500,7 @@ process_packet_in (lsquic_engine_t *engine, lsquic_packet_in_t *packet_in,
        struct packin_parse_state *ppstate, const struct sockaddr *sa_local,
        const struct sockaddr *sa_peer, void *peer_ctx, size_t packet_in_size)
 {
-    lsquic_conn_t *conn;
+    lsquic_conn_single_t *conn;
     const unsigned char *packet_in_data;
 
     if (lsquic_packet_in_is_gquic_prst(packet_in)
@@ -1585,7 +1592,7 @@ void
 lsquic_engine_destroy (lsquic_engine_t *engine)
 {
     struct lsquic_hash_elem *el;
-    lsquic_conn_t *conn;
+    lsquic_conn_single_t *conn;
     unsigned i;
 
     LSQ_DEBUG("destroying engine");
@@ -1691,7 +1698,7 @@ lsquic_engine_destroy (lsquic_engine_t *engine)
 
 
 static struct conn_cid_elem *
-find_free_cce (struct lsquic_conn *conn)
+find_free_cce (struct lsquic_conn_single *conn)
 {
     struct conn_cid_elem *cce;
 
@@ -1704,7 +1711,7 @@ find_free_cce (struct lsquic_conn *conn)
 
 
 static int
-add_conn_to_hash (struct lsquic_engine *engine, struct lsquic_conn *conn,
+add_conn_to_hash (struct lsquic_engine *engine, struct lsquic_conn_single *conn,
                                 const struct sockaddr *local_sa, void *peer_ctx)
 {
     struct conn_cid_elem *cce;
@@ -1734,16 +1741,16 @@ add_conn_to_hash (struct lsquic_engine *engine, struct lsquic_conn *conn,
 }
 
 
-lsquic_conn_t *
-lsquic_engine_connect (lsquic_engine_t *engine, enum lsquic_version version,
+lsquic_conn_single_t *
+lsquic_engine_connect_single (lsquic_engine_t *engine, enum lsquic_version version,
                        const struct sockaddr *local_sa,
                        const struct sockaddr *peer_sa,
-                       void *peer_ctx, lsquic_conn_ctx_t *conn_ctx, 
+                       void *peer_ctx, lsquic_conn_single_ctx_t *conn_ctx, 
                        const char *hostname, unsigned short base_plpmtu,
                        const unsigned char *sess_resume, size_t sess_resume_len,
                        const unsigned char *token, size_t token_sz)
 {
-    lsquic_conn_t *conn;
+    lsquic_conn_single_t *conn;
     unsigned flags, versions;
     int is_ipv4;
 
@@ -1761,7 +1768,6 @@ lsquic_engine_connect (lsquic_engine_t *engine, enum lsquic_version version,
         LSQ_ERROR("cannot have more than one connection on the same port");
         goto err;
     }
-
     if (0 != maybe_grow_conn_heaps(engine))
         return NULL;
     flags = engine->flags & (ENG_SERVER|ENG_HTTP);
@@ -1779,6 +1785,7 @@ lsquic_engine_connect (lsquic_engine_t *engine, enum lsquic_version version,
     if (version >= N_LSQVER)
     {
         if (version > N_LSQVER)
+            
             LSQ_WARN("invalid version specified, engine will pick");
         versions = engine->pub.enp_settings.es_versions;
     }
@@ -1818,8 +1825,8 @@ lsquic_engine_connect (lsquic_engine_t *engine, enum lsquic_version version,
         lsquic_mh_insert(&engine->conns_tickable, conn, conn->cn_last_ticked);
         engine_incref_conn(conn, LSCONN_TICKABLE);
     }
-    lsquic_conn_set_ctx(conn, conn_ctx);
-    conn->cn_if->ci_client_call_on_new(conn);
+    lsquic_conn_set_ctx_single(conn, conn_ctx);
+    //conn->cn_if->ci_client_call_on_new(conn);
   end:
     return conn;
   err:
@@ -1827,9 +1834,141 @@ lsquic_engine_connect (lsquic_engine_t *engine, enum lsquic_version version,
     goto end;
 }
 
+struct sockaddr_in
+lsquic_init_subflow_socket(const struct sockaddr *sa_main, const struct sockaddr *sa_peer){
+    int sockfd;
+    int saved_errno;
+#ifndef WIN32
+    int flags;
+#endif
+    socklen_t socklen, peer_socklen;
+    //union {
+    //    struct sockaddr_in  sin;
+    //    struct sockaddr_in6 sin6;
+    //} u;
+    struct sockaddr_in u;
+    struct sockaddr *sa_local = (struct sockaddr *) &u;
+    char addr_str[0x20];
+
+    switch (sa_peer->sa_family)
+    {
+    case AF_INET:
+        socklen = sizeof(struct sockaddr_in);
+        u.sin_family      = AF_INET;
+        u.sin_addr.s_addr = INADDR_ANY;
+        u.sin_port        = htons(43896);
+        break;
+    /*
+    case AF_INET6:
+        socklen = sizeof(struct sockaddr_in6);
+        memset(&u.sin6, 0, sizeof(u.sin6));
+        u.sin6.sin6_family = AF_INET6;
+        break;
+     */   
+    default:
+        errno = EINVAL;
+        return u;
+    
+    }
+    
+    
+    sockfd = socket(sa_main->sa_family, SOCK_DGRAM, 0);
+    if (-1 == sockfd){
+        LSQ_INFO("Failed to init_subflow!");
+        return u;
+    }
+
+    if (0 != bind(sockfd, sa_local, socklen)) {
+        saved_errno = errno;
+        close(sockfd);
+        errno = saved_errno;
+        LSQ_INFO("Failed to init_subflow!");
+        return u;
+    }
+
+    peer_socklen = AF_INET == sa_peer->sa_family ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
+    if (0 != connect(sockfd, sa_peer, peer_socklen))
+    {
+        saved_errno = errno;
+        close(sockfd);
+        errno = saved_errno;
+        LSQ_INFO("Failed to init_subflow!");
+        return u;
+    }
+
+    /* Make socket non-blocking */
+    flags = fcntl(sockfd, F_GETFL);
+    if (-1 == flags) {
+        saved_errno = errno;
+        close(sockfd);
+        errno = saved_errno;
+        LSQ_INFO("Failed to init_subflow!");
+        return u;
+    }
+    flags |= O_NONBLOCK;
+    if (0 != fcntl(sockfd, F_SETFL, flags)) {
+        saved_errno = errno;
+        close(sockfd);
+        errno = saved_errno;
+        LSQ_INFO("Failed to init_subflow!");
+        return u;
+    }
+    
+
+    switch (sa_local->sa_family) {
+    case AF_INET:
+        LSQ_DEBUG("Subflow local address: %s:%d",
+            inet_ntop(AF_INET, &u.sin_addr, addr_str, sizeof(addr_str)),
+            ntohs(u.sin_port));
+        break;
+    }
+
+    return u;
+}
+
+lsquic_conn_t *
+lsquic_engine_connect (lsquic_engine_t *engine, enum lsquic_version version,
+                       const struct sockaddr *local_sa,
+                       const struct sockaddr *peer_sa,
+                       void *peer_ctx, lsquic_conn_single_ctx_t *conn_ctx,
+                       const char *hostname, unsigned short base_plpmtu,
+                       const unsigned char *sess_resume, size_t sess_resume_len,
+                       /** Resumption token: optional */
+                       const unsigned char *token, size_t token_sz)
+{
+    struct lsquic_conn *lconn = (struct lsquic_conn *) malloc(sizeof(struct lsquic_conn));
+    struct lsquic_conn_single *conn = lsquic_engine_connect_single (engine, version,
+                       local_sa, peer_sa, peer_ctx, conn_ctx, hostname, base_plpmtu,
+                       sess_resume, sess_resume_len, token, token_sz);
+    LSQ_INFO("Connected single!");
+    lconn->main_conn = conn;
+    lconn->mcn_n_conns = 1;
+    //LSQ_INFO("Here, lconn->mcn_n_conns: %d", lconn->mcn_n_conns);
+    //lconn->mcn_conn_ctx = lsquic_conn_get_ctx_single(conn);
+    conn->cn_main_conn = lconn;
+    conn->cn_if->ci_client_call_on_new(conn->cn_main_conn);
+
+    /*
+    struct sockaddr_in subflow_sa = lsquic_init_subflow_socket(local_sa, peer_sa);
+    LSQ_NOTICE("Subflow res: %d\n", subflow_sa.sin_family);
+    LSQ_NOTICE("Connecting subflow");
+    struct lsquic_conn_single *subconn = lsquic_engine_connect_single (engine, version,
+                       (struct sockaddr *) &subflow_sa, peer_sa, peer_ctx, conn_ctx, hostname, base_plpmtu,
+                       sess_resume, sess_resume_len, token, token_sz);
+    lconn->sub_conn = subconn;
+    lconn->mcn_n_conns += 1;
+    subconn->cn_main_conn = lconn;
+    lsquic_conn_call_on_new_subconn(subconn->cn_main_conn);
+    //subconn->cn_if->ci_client_call_on_new(subconn->cn_main_conn); //make stream for subflow
+    LSQ_INFO("Connected subflow!\n");
+    */
+
+    return lconn;
+}
+
 
 static void
-remove_conn_from_hash (lsquic_engine_t *engine, lsquic_conn_t *conn)
+remove_conn_from_hash (lsquic_engine_t *engine, lsquic_conn_single_t *conn)
 {
     remove_all_cces_from_hash(engine->conns_hash, conn);
     (void) engine_decref_conn(engine, conn, LSCONN_HASHED);
@@ -1837,7 +1976,7 @@ remove_conn_from_hash (lsquic_engine_t *engine, lsquic_conn_t *conn)
 
 
 static void
-refflags2str (enum lsquic_conn_flags flags, char s[7])
+refflags2str (enum lsquic_conn_single_flags flags, char s[7])
 {
     *s = 'C'; s += !!(flags & LSCONN_CLOSING);
     *s = 'H'; s += !!(flags & LSCONN_HASHED);
@@ -1850,7 +1989,7 @@ refflags2str (enum lsquic_conn_flags flags, char s[7])
 
 
 static void
-engine_incref_conn (lsquic_conn_t *conn, enum lsquic_conn_flags flag)
+engine_incref_conn (lsquic_conn_single_t *conn, enum lsquic_conn_single_flags flag)
 {
     char str[2][7];
     assert(flag & CONN_REF_FLAGS);
@@ -1863,9 +2002,9 @@ engine_incref_conn (lsquic_conn_t *conn, enum lsquic_conn_flags flag)
 }
 
 
-static lsquic_conn_t *
-engine_decref_conn (lsquic_engine_t *engine, lsquic_conn_t *conn,
-                                        enum lsquic_conn_flags flags)
+static lsquic_conn_single_t *
+engine_decref_conn (lsquic_engine_t *engine, lsquic_conn_single_t *conn,
+                                        enum lsquic_conn_single_flags flags)
 {
     char str[2][7];
     lsquic_time_t now;
@@ -1897,10 +2036,10 @@ engine_decref_conn (lsquic_engine_t *engine, lsquic_conn_t *conn,
 
 /* This is not a general-purpose function.  Only call from engine dtor. */
 static void
-force_close_conn (lsquic_engine_t *engine, lsquic_conn_t *conn)
+force_close_conn (lsquic_engine_t *engine, lsquic_conn_single_t *conn)
 {
     assert(engine->flags & ENG_DTOR);
-    const enum lsquic_conn_flags flags = conn->cn_flags;
+    const enum lsquic_conn_single_flags flags = conn->cn_flags;
     assert(conn->cn_flags & CONN_REF_FLAGS);
     assert(!(flags & LSCONN_HAS_OUTGOING));  /* Should be removed already */
     assert(!(flags & LSCONN_TICKABLE));    /* Should be removed already */
@@ -1919,10 +2058,10 @@ force_close_conn (lsquic_engine_t *engine, lsquic_conn_t *conn)
  * a connection is returned, it is removed from the Advisory Tick Time queue
  * if necessary.
  */
-static lsquic_conn_t *
+static lsquic_conn_single_t *
 conn_iter_next_tickable (struct lsquic_engine *engine)
 {
-    lsquic_conn_t *conn;
+    lsquic_conn_single_t *conn;
 
     if (engine->flags & ENG_SERVER)
         while (1)
@@ -1981,7 +2120,7 @@ cub_add (struct cid_update_batch *cub, const lsquic_cid_t *cid, void *peer_ctx)
 
 /* Process registered CIDs */
 static void
-cub_add_cids_from_cces (struct cid_update_batch *cub, struct lsquic_conn *conn)
+cub_add_cids_from_cces (struct cid_update_batch *cub, struct lsquic_conn_single *conn)
 {
     struct cce_cid_iter citer;
     struct conn_cid_elem *cce;
@@ -1998,7 +2137,7 @@ static void
 drop_all_mini_conns (lsquic_engine_t *engine)
 {
     struct lsquic_hash_elem *el;
-    lsquic_conn_t *conn;
+    lsquic_conn_single_t *conn;
     struct cid_update_batch cub;
 
     cub_init(&cub, engine->report_old_scids, engine->scids_ctx);
@@ -2024,7 +2163,7 @@ drop_all_mini_conns (lsquic_engine_t *engine)
 void
 lsquic_engine_process_conns (lsquic_engine_t *engine)
 {
-    lsquic_conn_t *conn;
+    lsquic_conn_single_t *conn;
     lsquic_time_t now;
 
 #if LSQUIC_CONN_STATS
@@ -2056,7 +2195,7 @@ lsquic_engine_process_conns (lsquic_engine_t *engine)
 static void
 release_or_return_enc_data (struct lsquic_engine *engine,
                 void (*pmi_rel_or_ret) (void *, void *, void *, char),
-                struct lsquic_conn *conn, struct lsquic_packet_out *packet_out)
+                struct lsquic_conn_single *conn, struct lsquic_packet_out *packet_out)
 {
     pmi_rel_or_ret(engine->pub.enp_pmi_ctx, packet_out->po_path->np_peer_ctx,
                 packet_out->po_enc_data, lsquic_packet_out_ipv6(packet_out));
@@ -2066,7 +2205,7 @@ release_or_return_enc_data (struct lsquic_engine *engine,
 
 
 static void
-release_enc_data (struct lsquic_engine *engine, struct lsquic_conn *conn,
+release_enc_data (struct lsquic_engine *engine, struct lsquic_conn_single *conn,
                                         struct lsquic_packet_out *packet_out)
 {
     release_or_return_enc_data(engine, engine->pub.enp_pmi->pmi_release,
@@ -2075,7 +2214,7 @@ release_enc_data (struct lsquic_engine *engine, struct lsquic_conn *conn,
 
 
 static void
-return_enc_data (struct lsquic_engine *engine, struct lsquic_conn *conn,
+return_enc_data (struct lsquic_engine *engine, struct lsquic_conn_single *conn,
                                         struct lsquic_packet_out *packet_out)
 {
     release_or_return_enc_data(engine, engine->pub.enp_pmi->pmi_return,
@@ -2084,7 +2223,7 @@ return_enc_data (struct lsquic_engine *engine, struct lsquic_conn *conn,
 
 
 static int
-copy_packet (struct lsquic_engine *engine, struct lsquic_conn *conn,
+copy_packet (struct lsquic_engine *engine, struct lsquic_conn_single *conn,
                                         struct lsquic_packet_out *packet_out)
 {
     int ipv6;
@@ -2125,17 +2264,17 @@ copy_packet (struct lsquic_engine *engine, struct lsquic_conn *conn,
 }
 
 
-STAILQ_HEAD(conns_stailq, lsquic_conn);
-TAILQ_HEAD(conns_tailq, lsquic_conn);
+STAILQ_HEAD(conns_stailq, lsquic_conn_single);
+TAILQ_HEAD(conns_tailq, lsquic_conn_single);
 
 
 struct conns_out_iter
 {
     struct min_heap            *coi_heap;
     struct pr_queue            *coi_prq;
-    TAILQ_HEAD(, lsquic_conn)   coi_active_list,
+    TAILQ_HEAD(, lsquic_conn_single)   coi_active_list,
                                 coi_inactive_list;
-    lsquic_conn_t              *coi_next;
+    lsquic_conn_single_t              *coi_next;
 #ifndef NDEBUG
     lsquic_time_t               coi_last_sent;
 #endif
@@ -2156,10 +2295,10 @@ coi_init (struct conns_out_iter *iter, struct lsquic_engine *engine)
 }
 
 
-static lsquic_conn_t *
+static lsquic_conn_single_t *
 coi_next (struct conns_out_iter *iter)
 {
-    lsquic_conn_t *conn;
+    lsquic_conn_single_t *conn;
 
     if (lsquic_mh_count(iter->coi_heap) > 0)
     {
@@ -2193,7 +2332,7 @@ coi_next (struct conns_out_iter *iter)
 
 
 static void
-coi_deactivate (struct conns_out_iter *iter, lsquic_conn_t *conn)
+coi_deactivate (struct conns_out_iter *iter, lsquic_conn_single_t *conn)
 {
     if (!(conn->cn_flags & LSCONN_EVANESCENT))
     {
@@ -2207,7 +2346,7 @@ coi_deactivate (struct conns_out_iter *iter, lsquic_conn_t *conn)
 
 
 static void
-coi_reactivate (struct conns_out_iter *iter, lsquic_conn_t *conn)
+coi_reactivate (struct conns_out_iter *iter, lsquic_conn_single_t *conn)
 {
     assert(conn->cn_flags & LSCONN_COI_INACTIVE);
     TAILQ_REMOVE(&iter->coi_inactive_list, conn, cn_next_out);
@@ -2220,7 +2359,7 @@ coi_reactivate (struct conns_out_iter *iter, lsquic_conn_t *conn)
 static void
 coi_reheap (struct conns_out_iter *iter, lsquic_engine_t *engine)
 {
-    lsquic_conn_t *conn;
+    lsquic_conn_single_t *conn;
     while ((conn = TAILQ_FIRST(&iter->coi_active_list)))
     {
         TAILQ_REMOVE(&iter->coi_active_list, conn, cn_next_out);
@@ -2287,7 +2426,7 @@ struct send_batch_ctx {
 
 static void
 close_conn_immediately (struct lsquic_engine *engine,
-                const struct send_batch_ctx *sb_ctx, struct lsquic_conn *conn)
+                const struct send_batch_ctx *sb_ctx, struct lsquic_conn_single *conn)
 {
     conn->cn_flags |= LSCONN_IMMED_CLOSE;
     if (!(conn->cn_flags & LSCONN_CLOSING))
@@ -2310,7 +2449,7 @@ close_conn_on_send_error (struct lsquic_engine *engine,
                           const struct send_batch_ctx *sb_ctx, int n, int e_val)
 {
     const struct out_batch *batch = sb_ctx->batch;
-    struct lsquic_conn *const conn = batch->conns[n];
+    struct lsquic_conn_single *const conn = batch->conns[n];
     char buf[2][INET6_ADDRSTRLEN + sizeof(":65535")];
 
     LSQ_WARNC("error sending packet for %s connection %"CID_FMT" - close it; "
@@ -2331,7 +2470,7 @@ close_conn_on_send_error (struct lsquic_engine *engine,
 static void
 apply_hp (struct conns_out_iter *iter)
 {
-    struct lsquic_conn *conn;
+    struct lsquic_conn_single *conn;
 
     TAILQ_FOREACH(conn, &iter->coi_active_list, cn_next_out)
         if (conn->cn_esf_c->esf_flush_encryption && conn->cn_enc_session)
@@ -2550,7 +2689,7 @@ send_packets_out (struct lsquic_engine *engine,
     unsigned n, w, n_sent, n_batches_sent;
     lsquic_packet_out_t *packet_out;
     struct lsquic_packet_out **packet;
-    lsquic_conn_t *conn;
+    lsquic_conn_single_t *conn;
     struct out_batch *const batch = &engine->out_batch;
     struct iovec *iov, *packet_iov;
     struct conns_out_iter conns_iter;
@@ -2726,7 +2865,7 @@ static void
 check_tickable_conns_again (struct lsquic_engine *engine)
 {
     struct lsquic_hash_elem *el;
-    struct lsquic_conn *conn;
+    struct lsquic_conn_single *conn;
     unsigned count;
 
     count = 0;
@@ -2751,7 +2890,7 @@ check_tickable_conns_again (struct lsquic_engine *engine)
 void
 lsquic_engine_send_unsent_packets (lsquic_engine_t *engine)
 {
-    lsquic_conn_t *conn;
+    lsquic_conn_single_t *conn;
     struct conns_stailq closed_conns;
     struct conns_tailq ticked_conns = TAILQ_HEAD_INITIALIZER(ticked_conns);
     struct cid_update_batch cub;
@@ -2782,10 +2921,10 @@ lsquic_engine_send_unsent_packets (lsquic_engine_t *engine)
 }
 
 
-static lsquic_conn_t *
+static lsquic_conn_single_t *
 next_new_full_conn (struct conns_stailq *new_full_conns)
 {
-    lsquic_conn_t *conn;
+    lsquic_conn_single_t *conn;
 
     conn = STAILQ_FIRST(new_full_conns);
     if (conn)
@@ -2796,7 +2935,7 @@ next_new_full_conn (struct conns_stailq *new_full_conns)
 
 #if LSQUIC_CONN_STATS
 static void
-maybe_log_conn_stats (struct lsquic_engine *engine, struct lsquic_conn *conn,
+maybe_log_conn_stats (struct lsquic_engine *engine, struct lsquic_conn_single *conn,
                                                             lsquic_time_t now)
 {
     char cidstr[MAX_CID_LEN * 2 + 1];
@@ -2831,7 +2970,8 @@ static void
 process_connections (lsquic_engine_t *engine, conn_iter_f next_conn,
                      lsquic_time_t now)
 {
-    lsquic_conn_t *conn;
+    //LSQ_INFO("Processing connections\n");
+    lsquic_conn_single_t *conn;
     enum tick_st tick_st;
     unsigned i, why;
     lsquic_time_t next_tick_time;
@@ -2862,6 +3002,7 @@ process_connections (lsquic_engine_t *engine, conn_iter_f next_conn,
     while ((conn = next_conn(engine))
                             || (conn = next_new_full_conn(&new_full_conns)))
     {
+        //LSQ_INFO("Next connection\n");
         tick_st = conn->cn_if->ci_tick(conn, now);
 #if LSQUIC_CONN_STATS
         if (conn == engine->busy.current)
@@ -2870,11 +3011,13 @@ process_connections (lsquic_engine_t *engine, conn_iter_f next_conn,
         conn->cn_last_ticked = now + i /* Maintain relative order */ ++;
         if (tick_st & TICK_PROMOTE)
         {
-            lsquic_conn_t *new_conn;
+            lsquic_conn_single_t *new_conn;
             EV_LOG_CONN_EVENT(lsquic_conn_log_cid(conn),
                                                 "scheduled for promotion");
             assert(conn->cn_flags & LSCONN_MINI);
+            //LSQ_INFO("BEFORE new_full_conn_server");
             new_conn = new_full_conn_server(engine, conn, now);
+            //LSQ_INFO("After new_full_conn_server");
             if (new_conn)
             {
                 STAILQ_INSERT_TAIL(&new_full_conns, new_conn, cn_next_new_full);
@@ -2996,7 +3139,7 @@ lsquic_engine_packet_in (lsquic_engine_t *engine,
     else if (engine->flags & ENG_CONNS_BY_ADDR)
     {
         struct lsquic_hash_elem *el;
-        const struct lsquic_conn *conn;
+        const struct lsquic_conn_single *conn;
         el = find_conn_by_addr(engine->conns_hash, sa_local);
         if (!el)
             return -1;
@@ -3096,7 +3239,7 @@ void
 lsquic_engine_cooldown (lsquic_engine_t *engine)
 {
     struct lsquic_hash_elem *el;
-    lsquic_conn_t *conn;
+    lsquic_conn_single_t *conn;
 
     if (engine->flags & ENG_COOLDOWN)
         /* AFAICT, there is no harm in calling this function more than once,
@@ -3118,7 +3261,7 @@ lsquic_engine_cooldown (lsquic_engine_t *engine)
 
 #if LSQUIC_CONN_STATS
 static void
-update_busy_detector (struct lsquic_engine *engine, struct lsquic_conn *conn,
+update_busy_detector (struct lsquic_engine *engine, struct lsquic_conn_single *conn,
                                                                     int immed)
 {
     char cidstr[MAX_CID_LEN * 2 + 1];
@@ -3158,7 +3301,7 @@ lsquic_engine_earliest_adv_tick (lsquic_engine_t *engine, int *diff)
     const struct attq_elem *next_attq;
     lsquic_time_t now, next_time;
 #if LSQUIC_DEBUG_NEXT_ADV_TICK || LSQUIC_CONN_STATS
-    struct lsquic_conn *conn;
+    struct lsquic_conn_single *conn;
 #endif
 #if LSQUIC_DEBUG_NEXT_ADV_TICK
     const enum lsq_log_level L = LSQ_LOG_DEBUG;  /* Easy toggle */
@@ -3304,7 +3447,7 @@ lsquic_engine_count_attq (lsquic_engine_t *engine, int from_now)
 
 int
 lsquic_engine_add_cid (struct lsquic_engine_public *enpub,
-                              struct lsquic_conn *conn, unsigned cce_idx)
+                              struct lsquic_conn_single *conn, unsigned cce_idx)
 {
     lsquic_test_hello_word();
     struct lsquic_engine *const engine = (struct lsquic_engine *) enpub;
@@ -3336,7 +3479,7 @@ lsquic_engine_add_cid (struct lsquic_engine_public *enpub,
 
 void
 lsquic_engine_retire_cid (struct lsquic_engine_public *enpub,
-              struct lsquic_conn *conn, unsigned cce_idx, lsquic_time_t now,
+              struct lsquic_conn_single *conn, unsigned cce_idx, lsquic_time_t now,
               lsquic_time_t drain_time)
 {
     struct lsquic_engine *const engine = (struct lsquic_engine *) enpub;

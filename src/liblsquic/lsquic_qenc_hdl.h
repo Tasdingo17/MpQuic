@@ -10,14 +10,14 @@
 #ifndef LSQUIC_QENC_HDL_H
 #define LSQUIC_QENC_HDL_H 1
 
-struct lsquic_conn;
+struct lsquic_conn_single;
 struct lsquic_stream;
 struct lsquic_stream_if;
 struct qpack_exp_record;
 
 struct qpack_enc_hdl
 {
-    struct lsquic_conn      *qeh_conn;
+    struct lsquic_conn_single      *qeh_conn;
     enum {
         QEH_INITIALIZED     = 1 << 0,
         QEH_HAVE_SETTINGS   = 1 << 1,
@@ -33,7 +33,7 @@ struct qpack_enc_hdl
 };
 
 void
-lsquic_qeh_init (struct qpack_enc_hdl *, struct lsquic_conn *);
+lsquic_qeh_init (struct qpack_enc_hdl *, struct lsquic_conn_single *);
 
 int
 lsquic_qeh_settings (struct qpack_enc_hdl *, unsigned max_table_size,

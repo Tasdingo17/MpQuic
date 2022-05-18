@@ -23,7 +23,7 @@
 
 
 int
-lsquic_bw_sampler_init (struct bw_sampler *sampler, struct lsquic_conn *conn,
+lsquic_bw_sampler_init (struct bw_sampler *sampler, struct lsquic_conn_single *conn,
                                                 enum quic_ft_bit retx_frames)
 {
     struct malo *malo;

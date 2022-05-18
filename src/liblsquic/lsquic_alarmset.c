@@ -16,7 +16,7 @@
 
 
 void
-lsquic_alarmset_init (lsquic_alarmset_t *alset, const struct lsquic_conn *conn)
+lsquic_alarmset_init (lsquic_alarmset_t *alset, const struct lsquic_conn_single *conn)
 {
     alset->as_conn      = conn;
     alset->as_armed_set = 0;

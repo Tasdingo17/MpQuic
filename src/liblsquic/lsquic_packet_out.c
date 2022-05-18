@@ -202,7 +202,7 @@ lsquic_packet_out_add_stream (struct lsquic_packet_out *packet_out,
 
 lsquic_packet_out_t *
 lsquic_packet_out_new (struct lsquic_mm *mm, struct malo *malo, int use_cid,
-                const struct lsquic_conn *lconn, enum packno_bits bits,
+                const struct lsquic_conn_single *lconn, enum packno_bits bits,
                 const lsquic_ver_tag_t *ver_tag, const unsigned char *nonce,
                 const struct network_path *path, enum header_type header_type)
 {
@@ -466,7 +466,7 @@ lsquic_packet_out_turn_on_fin (struct lsquic_packet_out *packet_out,
             {
                 pf->pf_turn_on_fin(packet_out->po_data + frec->fe_off);
                 EV_LOG_UPDATED_STREAM_FRAME(
-                    lsquic_conn_log_cid(lsquic_stream_conn(stream)),
+                    lsquic_conn_log_cid(lsquic_stream_conn_single(stream)),
                     pf, packet_out->po_data + frec->fe_off, frec->fe_len);
                 return 0;
             }

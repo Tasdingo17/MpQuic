@@ -6,7 +6,7 @@
 #ifndef LSQUIC_HCSI_READER_H
 #define LSQUIC_HCSI_READER_H 1
 
-struct lsquic_conn;
+struct lsquic_conn_single;
 
 
 struct hcsi_callbacks
@@ -40,7 +40,7 @@ struct hcsi_reader
         HR_FLAG_RCVD_SETTING = 1,
     }                               hr_flag:8;
     unsigned                        hr_nread;  /* Used for PRIORITY_UPDATE and SETTINGS frames */
-    struct lsquic_conn             *hr_conn;
+    struct lsquic_conn_single             *hr_conn;
     uint64_t                        hr_frame_type;
     uint64_t                        hr_frame_length;
     union
@@ -63,7 +63,7 @@ struct hcsi_reader
 
 
 void
-lsquic_hcsi_reader_init (struct hcsi_reader *, struct lsquic_conn *,
+lsquic_hcsi_reader_init (struct hcsi_reader *, struct lsquic_conn_single *,
                                 const struct hcsi_callbacks *, void *cb_ctx);
 
 int

@@ -7,15 +7,15 @@
 #define LSQUIC_ATTQ_H
 
 struct attq;
-struct lsquic_conn;
+struct lsquic_conn_single;
 
 
 /* The extra level of indirection is done for speed: swapping heap elements
- * does not need memory associated with lsquic_conn.
+ * does not need memory associated with lsquic_conn_single.
  */
 struct attq_elem
 {
-    struct lsquic_conn  *ae_conn;
+    struct lsquic_conn_single  *ae_conn;
     lsquic_time_t        ae_adv_time;
     unsigned             ae_heap_idx;
     /* The "why" describes why the connection is in the Advisory Tick Time
@@ -38,13 +38,13 @@ lsquic_attq_destroy (struct attq *);
 
 /* Return 0 on success, -1 on failure (malloc) */
 int
-lsquic_attq_add (struct attq *, struct lsquic_conn *, lsquic_time_t advisory_time,
+lsquic_attq_add (struct attq *, struct lsquic_conn_single *, lsquic_time_t advisory_time,
                 enum ae_why);
 
 void
-lsquic_attq_remove (struct attq *, struct lsquic_conn *);
+lsquic_attq_remove (struct attq *, struct lsquic_conn_single *);
 
-struct lsquic_conn *
+struct lsquic_conn_single *
 lsquic_attq_pop (struct attq *, lsquic_time_t cutoff);
 
 unsigned

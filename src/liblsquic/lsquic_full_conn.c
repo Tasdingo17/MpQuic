@@ -171,7 +171,7 @@ struct stream_id_to_reset
 
 struct full_conn
 {
-    struct lsquic_conn           fc_conn;
+    struct lsquic_conn_single           fc_conn;
     struct conn_cid_elem         fc_cces[2];
     struct lsquic_rechist        fc_rechist;
     struct {
@@ -724,7 +724,7 @@ new_conn_common (lsquic_cid_t cid, struct lsquic_engine_public *enpub,
 }
 
 
-struct lsquic_conn *
+struct lsquic_conn_single *
 lsquic_gquic_full_conn_client_new (struct lsquic_engine_public *enpub,
                       unsigned versions, unsigned flags,
                       const char *hostname, unsigned short max_packet_size,
@@ -807,9 +807,9 @@ lsquic_gquic_full_conn_client_new (struct lsquic_engine_public *enpub,
 static void
 full_conn_ci_client_call_on_new (struct lsquic_conn *lconn)
 {
-    struct full_conn *const conn = (struct full_conn *) lconn;
+    struct full_conn *const conn = (struct full_conn *) lconn->main_conn;
     assert(conn->fc_flags & FC_CREATED_OK);
-    lconn->cn_conn_ctx = conn->fc_stream_ifs[STREAM_IF_STD].stream_if
+    lconn->main_conn->cn_conn_ctx = conn->fc_stream_ifs[STREAM_IF_STD].stream_if
         ->on_new_conn(conn->fc_stream_ifs[STREAM_IF_STD].stream_if_ctx, lconn);
 }
 
@@ -817,13 +817,13 @@ full_conn_ci_client_call_on_new (struct lsquic_conn *lconn)
 /* This function is special in that it peeks into fc_send_ctl.  Other functions
  * should not do that.
  */
-struct lsquic_conn *
+struct lsquic_conn_single *
 lsquic_gquic_full_conn_server_new (struct lsquic_engine_public *enpub,
-                      unsigned flags, lsquic_conn_t *lconn_mini)
+                      unsigned flags, lsquic_conn_single_t *lconn_mini)
 {
     struct full_conn *conn;
     struct mini_conn *mc;
-    lsquic_conn_t *lconn_full;
+    lsquic_conn_single_t *lconn_full;
     lsquic_packet_in_t *packet_in;
     lsquic_packet_out_t *packet_out;
     lsquic_stream_t *hsk_stream;
@@ -1088,7 +1088,7 @@ collect_stream_counts (const struct full_conn *conn, int peer,
 
 
 static void
-full_conn_ci_destroy (lsquic_conn_t *lconn)
+full_conn_ci_destroy (lsquic_conn_single_t *lconn)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     struct lsquic_hash_elem *el;
@@ -1108,7 +1108,7 @@ full_conn_ci_destroy (lsquic_conn_t *lconn)
     lsquic_hash_destroy(conn->fc_pub.all_streams);
     if (conn->fc_flags & FC_CREATED_OK)
         conn->fc_stream_ifs[STREAM_IF_STD].stream_if
-                    ->on_conn_closed(&conn->fc_conn);
+                    ->on_conn_closed(conn->fc_conn.cn_main_conn);
     if (conn->fc_pub.u.gquic.hs)
         lsquic_headers_stream_destroy(conn->fc_pub.u.gquic.hs);
 
@@ -1258,7 +1258,7 @@ verify_ack_frame (struct full_conn *conn, const unsigned char *buf, int bufsz)
 
 
 static void
-full_conn_ci_write_ack (struct lsquic_conn *lconn,
+full_conn_ci_write_ack (struct lsquic_conn_single *lconn,
                                     struct lsquic_packet_out *packet_out)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
@@ -1355,7 +1355,7 @@ generate_stream_id (struct full_conn *conn)
 
 
 static unsigned
-full_conn_ci_n_pending_streams (const struct lsquic_conn *lconn)
+full_conn_ci_n_pending_streams (const struct lsquic_conn_single *lconn)
 {
     const struct full_conn *conn = (const struct full_conn *) lconn;
     return conn->fc_n_delayed_streams;
@@ -1363,7 +1363,7 @@ full_conn_ci_n_pending_streams (const struct lsquic_conn *lconn)
 
 
 static unsigned
-full_conn_ci_cancel_pending_streams (struct lsquic_conn *lconn, unsigned n)
+full_conn_ci_cancel_pending_streams (struct lsquic_conn_single *lconn, unsigned n)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     if (n > conn->fc_n_delayed_streams)
@@ -1383,7 +1383,7 @@ either_side_going_away (const struct full_conn *conn)
 
 
 static unsigned
-full_conn_ci_n_avail_streams (const lsquic_conn_t *lconn)
+full_conn_ci_n_avail_streams (const lsquic_conn_single_t *lconn)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     unsigned stream_count = count_streams(conn, 0);
@@ -1403,7 +1403,7 @@ handshake_done_or_doing_sess_resume (const struct full_conn *conn)
 
 
 static void
-full_conn_ci_make_stream (struct lsquic_conn *lconn)
+full_conn_ci_make_stream (struct lsquic_conn_single *lconn)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     if (handshake_done_or_doing_sess_resume(conn)
@@ -1437,7 +1437,7 @@ find_stream_by_id (struct full_conn *conn, lsquic_stream_id_t stream_id)
 
 
 static struct lsquic_stream *
-full_conn_ci_get_stream_by_id (struct lsquic_conn *lconn,
+full_conn_ci_get_stream_by_id (struct lsquic_conn_single *lconn,
                                lsquic_stream_id_t stream_id)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
@@ -1452,7 +1452,7 @@ full_conn_ci_get_stream_by_id (struct lsquic_conn *lconn,
 
 
 static struct lsquic_engine *
-full_conn_ci_get_engine (struct lsquic_conn *lconn)
+full_conn_ci_get_engine (struct lsquic_conn_single *lconn)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     return conn->fc_enpub->enp_engine;
@@ -1460,7 +1460,7 @@ full_conn_ci_get_engine (struct lsquic_conn *lconn)
 
 
 static struct network_path *
-full_conn_ci_get_path (struct lsquic_conn *lconn, const struct sockaddr *sa)
+full_conn_ci_get_path (struct lsquic_conn_single *lconn, const struct sockaddr *sa)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
 
@@ -1469,7 +1469,7 @@ full_conn_ci_get_path (struct lsquic_conn *lconn, const struct sockaddr *sa)
 
 
 static unsigned char
-full_conn_ci_record_addrs (struct lsquic_conn *lconn, void *peer_ctx,
+full_conn_ci_record_addrs (struct lsquic_conn_single *lconn, void *peer_ctx,
             const struct sockaddr *local_sa, const struct sockaddr *peer_sa)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
@@ -1871,7 +1871,7 @@ process_goaway_frame (struct full_conn *conn, lsquic_packet_in_t *packet_in,
         {
             LSQ_DEBUG("calling on_goaway_received");
             conn->fc_stream_ifs[STREAM_IF_STD].stream_if->on_goaway_received(
-                                            &conn->fc_conn);
+                                            conn->fc_conn.cn_main_conn);
         }
         else
             LSQ_DEBUG("on_goaway_received not registered");
@@ -3292,7 +3292,7 @@ should_generate_ack (const struct full_conn *conn)
 
 
 static int
-full_conn_ci_can_write_ack (struct lsquic_conn *lconn)
+full_conn_ci_can_write_ack (struct lsquic_conn_single *lconn)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     return should_generate_ack(conn);
@@ -3312,7 +3312,7 @@ typedef char ack_state_size[sizeof(struct full_ack_state)
                                     <= sizeof(struct ack_state) ? 1 : - 1];
 
 static void
-full_conn_ci_ack_snapshot (struct lsquic_conn *lconn, struct ack_state *opaque)
+full_conn_ci_ack_snapshot (struct lsquic_conn_single *lconn, struct ack_state *opaque)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     struct full_ack_state *const ack_state = (struct full_ack_state *) opaque;
@@ -3327,7 +3327,7 @@ full_conn_ci_ack_snapshot (struct lsquic_conn *lconn, struct ack_state *opaque)
 
 
 static void
-full_conn_ci_ack_rollback (struct lsquic_conn *lconn, struct ack_state *opaque)
+full_conn_ci_ack_rollback (struct lsquic_conn_single *lconn, struct ack_state *opaque)
 {
     struct full_ack_state *const ack_state = (struct full_ack_state *) opaque;
     struct full_conn *conn = (struct full_conn *) lconn;
@@ -3372,7 +3372,7 @@ maybe_set_noprogress_alarm (struct full_conn *conn, lsquic_time_t now)
 
 
 static enum tick_st
-full_conn_ci_tick (lsquic_conn_t *lconn, lsquic_time_t now)
+full_conn_ci_tick (lsquic_conn_single_t *lconn, lsquic_time_t now)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     int have_delayed_packets;
@@ -3673,7 +3673,7 @@ set_earliest_idle_alarm (struct full_conn *conn, lsquic_time_t idle_conn_to)
 
 
 static void
-full_conn_ci_packet_in (lsquic_conn_t *lconn, lsquic_packet_in_t *packet_in)
+full_conn_ci_packet_in (lsquic_conn_single_t *lconn, lsquic_packet_in_t *packet_in)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
 
@@ -3689,7 +3689,7 @@ full_conn_ci_packet_in (lsquic_conn_t *lconn, lsquic_packet_in_t *packet_in)
 
 
 static lsquic_packet_out_t *
-full_conn_ci_next_packet_to_send (struct lsquic_conn *lconn,
+full_conn_ci_next_packet_to_send (struct lsquic_conn_single *lconn,
                                                 const struct to_coal *unused)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
@@ -3698,7 +3698,7 @@ full_conn_ci_next_packet_to_send (struct lsquic_conn *lconn,
 
 
 static void
-full_conn_ci_packet_sent (lsquic_conn_t *lconn, lsquic_packet_out_t *packet_out)
+full_conn_ci_packet_sent (lsquic_conn_single_t *lconn, lsquic_packet_out_t *packet_out)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     int s;
@@ -3721,7 +3721,7 @@ full_conn_ci_packet_sent (lsquic_conn_t *lconn, lsquic_packet_out_t *packet_out)
 
 
 static void
-full_conn_ci_packet_not_sent (lsquic_conn_t *lconn, lsquic_packet_out_t *packet_out)
+full_conn_ci_packet_not_sent (lsquic_conn_single_t *lconn, lsquic_packet_out_t *packet_out)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     lsquic_send_ctl_delayed_one(&conn->fc_send_ctl, packet_out);
@@ -3729,7 +3729,7 @@ full_conn_ci_packet_not_sent (lsquic_conn_t *lconn, lsquic_packet_out_t *packet_
 
 
 static void
-full_conn_ci_hsk_done (lsquic_conn_t *lconn, enum lsquic_hsk_status status)
+full_conn_ci_hsk_done (lsquic_conn_single_t *lconn, enum lsquic_hsk_status status)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     lsquic_alarmset_unset(&conn->fc_alset, AL_HANDSHAKE);
@@ -3769,7 +3769,7 @@ full_conn_ci_hsk_done (lsquic_conn_t *lconn, enum lsquic_hsk_status status)
 
 
 static void
-full_conn_ci_abort (struct lsquic_conn *lconn)
+full_conn_ci_abort (struct lsquic_conn_single *lconn)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     LSQ_INFO("User aborted connection");
@@ -3779,7 +3779,7 @@ full_conn_ci_abort (struct lsquic_conn *lconn)
 
 
 static void
-full_conn_ci_internal_error (struct lsquic_conn *lconn,
+full_conn_ci_internal_error (struct lsquic_conn_single *lconn,
                                                     const char *format, ...)
 {
     struct full_conn *const conn = (struct full_conn *) lconn;
@@ -3790,7 +3790,7 @@ full_conn_ci_internal_error (struct lsquic_conn *lconn,
 
 /* This function should not be called, as this is specific to IETF QUIC */
 static void
-full_conn_ci_abort_error (struct lsquic_conn *lconn, int is_app,
+full_conn_ci_abort_error (struct lsquic_conn_single *lconn, int is_app,
                                 unsigned error_code, const char *fmt, ...)
 {
     struct full_conn *const conn = (struct full_conn *) lconn;
@@ -3801,7 +3801,7 @@ full_conn_ci_abort_error (struct lsquic_conn *lconn, int is_app,
 
 
 static void
-full_conn_ci_close (struct lsquic_conn *lconn)
+full_conn_ci_close (struct lsquic_conn_single *lconn)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     lsquic_stream_t *stream;
@@ -3825,7 +3825,7 @@ full_conn_ci_close (struct lsquic_conn *lconn)
 
 
 static void
-full_conn_ci_going_away (struct lsquic_conn *lconn)
+full_conn_ci_going_away (struct lsquic_conn_single *lconn)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     if (!(conn->fc_flags & (FC_CLOSING|FC_GOING_AWAY)))
@@ -4101,7 +4101,7 @@ synthesize_push_request (struct full_conn *conn, void *hset,
 
 
 static int
-full_conn_ci_is_push_enabled (struct lsquic_conn *lconn)
+full_conn_ci_is_push_enabled (struct lsquic_conn_single *lconn)
 {
     struct full_conn *const conn = (struct full_conn *) lconn;
     return conn->fc_flags & FC_SUPPORT_PUSH;
@@ -4109,7 +4109,7 @@ full_conn_ci_is_push_enabled (struct lsquic_conn *lconn)
 
 
 static int
-full_conn_ci_push_stream (struct lsquic_conn *lconn, void *hset,
+full_conn_ci_push_stream (struct lsquic_conn_single *lconn, void *hset,
     struct lsquic_stream *dep_stream, const struct lsquic_http_headers *headers)
 {
     struct full_conn *const conn = (struct full_conn *) lconn;
@@ -4196,14 +4196,14 @@ full_conn_ci_push_stream (struct lsquic_conn *lconn, void *hset,
 
 
 static void
-full_conn_ci_tls_alert (struct lsquic_conn *lconn, uint8_t alert)
+full_conn_ci_tls_alert (struct lsquic_conn_single *lconn, uint8_t alert)
 {
     assert(0);
 }
 
 
 static enum LSQUIC_CONN_STATUS
-full_conn_ci_status (struct lsquic_conn *lconn, char *errbuf, size_t bufsz)
+full_conn_ci_status (struct lsquic_conn_single *lconn, char *errbuf, size_t bufsz)
 {
     struct full_conn *const conn = (struct full_conn *) lconn;
     size_t n;
@@ -4260,7 +4260,7 @@ full_conn_ci_status (struct lsquic_conn *lconn, char *errbuf, size_t bufsz)
 
 
 static int
-full_conn_ci_is_tickable (lsquic_conn_t *lconn)
+full_conn_ci_is_tickable (lsquic_conn_single_t *lconn)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     struct lsquic_stream *stream;
@@ -4349,7 +4349,7 @@ full_conn_ci_is_tickable (lsquic_conn_t *lconn)
 
 
 static lsquic_time_t
-full_conn_ci_next_tick_time (lsquic_conn_t *lconn, unsigned *why)
+full_conn_ci_next_tick_time (lsquic_conn_single_t *lconn, unsigned *why)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     lsquic_time_t alarm_time, pacer_time, now;
@@ -4395,7 +4395,7 @@ full_conn_ci_next_tick_time (lsquic_conn_t *lconn, unsigned *why)
 
 
 int
-lsquic_gquic_full_conn_srej (struct lsquic_conn *lconn)
+lsquic_gquic_full_conn_srej (struct lsquic_conn_single *lconn)
 {
     struct full_conn *const conn = (struct full_conn *) lconn;
     const unsigned cce_idx = lconn->cn_cur_cce_idx;
@@ -4468,7 +4468,7 @@ lsquic_gquic_full_conn_srej (struct lsquic_conn *lconn)
 
 #if LSQUIC_CONN_STATS
 static const struct conn_stats *
-full_conn_ci_get_stats (struct lsquic_conn *lconn)
+full_conn_ci_get_stats (struct lsquic_conn_single *lconn)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     return &conn->fc_stats;
@@ -4478,7 +4478,7 @@ full_conn_ci_get_stats (struct lsquic_conn *lconn)
 #include "lsquic_cong_ctl.h"
 
 static void
-full_conn_ci_log_stats (struct lsquic_conn *lconn)
+full_conn_ci_log_stats (struct lsquic_conn_single *lconn)
 {
     struct full_conn *conn = (struct full_conn *) lconn;
     struct batch_size_stats *const bs = &conn->fc_enpub->enp_batch_size_stats;

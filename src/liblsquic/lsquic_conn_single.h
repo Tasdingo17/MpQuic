@@ -157,7 +157,7 @@ struct conn_iface
 #endif
 
     void
-    (*ci_client_call_on_new) (struct lsquic_conn_single *);
+    (*ci_client_call_on_new) (struct lsquic_conn *);
 
     enum LSQUIC_CONN_STATUS
     (*ci_status) (struct lsquic_conn_single *, char *errbuf, size_t bufsz);
@@ -320,6 +320,8 @@ struct conn_cid_elem
     }                           cce_flags;
 };
 
+struct lsquic_conn;
+
 struct lsquic_conn_single
 {
     void                        *cn_enc_session;
@@ -350,6 +352,7 @@ struct lsquic_conn_single
     unsigned char                cn_cces_mask;  /* Those that are set */
     unsigned char                cn_n_cces; /* Number of CCEs in cn_cces */
     unsigned char                cn_cur_cce_idx;
+    struct lsquic_conn           *cn_main_conn;
 #if LSQUIC_TEST
     struct conn_cid_elem         cn_cces_buf[8];
 #define LSCONN_INITIALIZER_CID(lsconn_, cid_) { \
@@ -375,15 +378,15 @@ struct lsquic_conn_single
 #define CN_SCID(conn) (&(conn)->cn_cces[(conn)->cn_cur_cce_idx].cce_cid)
 
 unsigned char
-lsquic_conn_single_record_sockaddr (lsquic_conn_single_t *lconn, void *peer_ctx,
+lsquic_conn_record_sockaddr (lsquic_conn_single_t *lconn, void *peer_ctx,
             const struct sockaddr *local_sa, const struct sockaddr *peer_sa);
 
 int
-lsquic_conn_single_decrypt_packet (lsquic_conn_single_t *lconn,
+lsquic_conn_decrypt_packet (lsquic_conn_single_t *lconn,
                     struct lsquic_engine_public *, struct lsquic_packet_in *);
 
 int
-lsquic_conn_single_copy_and_release_pi_data (const lsquic_conn_single_t *conn,
+lsquic_conn_copy_and_release_pi_data (const lsquic_conn_single_t *conn,
                     struct lsquic_engine_public *, struct lsquic_packet_in *);
 
 void
@@ -397,7 +400,10 @@ lsquic_generate_scid (void *, struct lsquic_conn_single *lconn, lsquic_cid_t *sc
                                                                 unsigned len);
 
 void
-lsquic_conn_single_retire_cid (lsquic_conn_single_t *lconn);
+lsquic_conn_retire_cid (lsquic_conn_single_t *lconn);
+
+struct lsquic_conn *
+lsquic_conn_main_conn (struct lsquic_conn_single *lconn);
 
 #define lsquic_conn_single_adv_time(c) ((c)->cn_attq_elem->ae_adv_time)
 
@@ -436,7 +442,7 @@ struct conn_stats {
 };
 
 void
-lsquic_conn_single_stats_diff (const struct conn_stats *cumulative,
+lsquic_conn_stats_diff (const struct conn_stats *cumulative,
                         const struct conn_stats *previous,
                         struct conn_stats *new);
 #endif

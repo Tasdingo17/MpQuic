@@ -70,7 +70,7 @@ ietf_v1_parse_packet_in_finish (lsquic_packet_in_t *packet_in,
 
 /* Note: token size is not accounted for */
 static size_t
-ietf_v1_packout_header_size_long_by_flags (const struct lsquic_conn *lconn,
+ietf_v1_packout_header_size_long_by_flags (const struct lsquic_conn_single *lconn,
                 enum header_type header_type, enum packet_out_flags flags,
                 size_t dcid_len)
 {
@@ -95,7 +95,7 @@ ietf_v1_packout_header_size_long_by_flags (const struct lsquic_conn *lconn,
 
 
 static size_t
-ietf_v1_packout_header_size_long_by_packet (const struct lsquic_conn *lconn,
+ietf_v1_packout_header_size_long_by_packet (const struct lsquic_conn_single *lconn,
                                 const struct lsquic_packet_out *packet_out)
 {
     size_t sz;
@@ -138,7 +138,7 @@ ietf_v1_packout_header_size_short (enum packet_out_flags flags, size_t dcid_len)
 
 
 static size_t
-ietf_v1_packout_max_header_size (const struct lsquic_conn *lconn,
+ietf_v1_packout_max_header_size (const struct lsquic_conn_single *lconn,
     enum packet_out_flags flags, size_t dcid_len, enum header_type header_type)
 {
     if ((lconn->cn_flags & LSCONN_HANDSHAKE_DONE)
@@ -185,7 +185,7 @@ write_packno (unsigned char *p, lsquic_packno_t packno,
 
 
 static int
-gen_long_pkt_header (const struct lsquic_conn *lconn,
+gen_long_pkt_header (const struct lsquic_conn_single *lconn,
             const struct lsquic_packet_out *packet_out, unsigned char *buf,
             size_t bufsz, unsigned *packno_off_p, unsigned *packno_len_p)
 {
@@ -246,7 +246,7 @@ gen_long_pkt_header (const struct lsquic_conn *lconn,
 
 
 static int
-gen_short_pkt_header (const struct lsquic_conn *lconn,
+gen_short_pkt_header (const struct lsquic_conn_single *lconn,
             const struct lsquic_packet_out *packet_out, unsigned char *buf,
             size_t bufsz, unsigned *packno_off_p, unsigned *packno_len_p)
 {
@@ -281,7 +281,7 @@ gen_short_pkt_header (const struct lsquic_conn *lconn,
 
 
 static int
-ietf_v1_gen_reg_pkt_header (const struct lsquic_conn *lconn,
+ietf_v1_gen_reg_pkt_header (const struct lsquic_conn_single *lconn,
             const struct lsquic_packet_out *packet_out, unsigned char *buf,
             size_t bufsz, unsigned *packno_off, unsigned *packno_len)
 {
@@ -295,7 +295,7 @@ ietf_v1_gen_reg_pkt_header (const struct lsquic_conn *lconn,
 
 
 static size_t
-ietf_v1_packout_size (const struct lsquic_conn *lconn,
+ietf_v1_packout_size (const struct lsquic_conn_single *lconn,
                                 const struct lsquic_packet_out *packet_out)
 {
     size_t sz;
@@ -2209,8 +2209,8 @@ ietf_v1_datagram_frame_size (size_t sz)
 static int
 ietf_v1_gen_datagram_frame (unsigned char *buf, size_t bufsz, size_t min_sz,
     size_t max_sz,
-    ssize_t (*user_callback)(struct lsquic_conn *, void *, size_t),
-    struct lsquic_conn *lconn)
+    ssize_t (*user_callback)(struct lsquic_conn_single *, void *, size_t),
+    struct lsquic_conn_single *lconn)
 {
     unsigned bits, len_sz;
     ssize_t nw;
@@ -2240,6 +2240,18 @@ ietf_v1_gen_datagram_frame (unsigned char *buf, size_t bufsz, size_t min_sz,
     }
     else
         return -1;
+}
+
+
+static int 
+ietf_v1_gen_subconn_frame(const unsigned char *buf, size_t packet_sz){
+    return 1;
+}
+
+
+static int
+ietf_v1_parse_subconn_frame(const unsigned char *buf, size_t packet_sz){
+    return 1;
 }
 
 
@@ -2316,4 +2328,6 @@ const struct parse_funcs lsquic_parse_funcs_ietf_v1 =
     .pf_parse_datagram_frame          =  ietf_v1_parse_datagram_frame,
     .pf_gen_datagram_frame            =  ietf_v1_gen_datagram_frame,
     .pf_datagram_frame_size           =  ietf_v1_datagram_frame_size,
+    .pf_gen_subconn_frame             =  ietf_v1_gen_subconn_frame,
+    .pf_parse_subconn_frame           =  ietf_v1_parse_subconn_frame,
 };

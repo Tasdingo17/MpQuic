@@ -26,7 +26,7 @@
 #include "lsquic_conn.h"
 
 #define LSQUIC_LOGGER_MODULE LSQLM_FRAME_READER
-#define LSQUIC_LOG_CONN_ID lsquic_conn_log_cid(lsquic_stream_conn(\
+#define LSQUIC_LOG_CONN_ID lsquic_conn_log_cid(lsquic_stream_conn_single(\
                                                             fr->fr_stream))
 #include "lsquic_logger.h"
 
@@ -202,7 +202,7 @@ lsquic_frame_reader_new (enum frame_reader_flags flags,
     if (hsi_if == lsquic_http1x_if)
     {
         fr->fr_h1x_ctor_ctx = (struct http1x_ctor_ctx) {
-            .conn           = lsquic_stream_conn(stream),
+            .conn           = lsquic_stream_conn_single(stream),
             .max_headers_sz = fr->fr_max_headers_sz,
             .is_server      = fr->fr_flags & FRF_SERVER,
         };
@@ -513,10 +513,10 @@ static struct lsquic_stream *
 find_target_stream (const struct lsquic_frame_reader *fr)
 {
     lsquic_stream_id_t stream_id;
-    struct lsquic_conn *lconn;
+    struct lsquic_conn_single *lconn;
 
     stream_id = fr_get_stream_id(fr);
-    lconn = lsquic_stream_conn(fr->fr_stream);
+    lconn = lsquic_stream_conn_single(fr->fr_stream);
     if (lconn->cn_if->ci_get_stream_by_id)
         return lconn->cn_if->ci_get_stream_by_id(lconn, stream_id);
 

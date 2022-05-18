@@ -10,7 +10,7 @@
 #ifndef LSQUIC_CONN_PUBLIC_H
 #define LSQUIC_CONN_PUBLIC_H 1
 
-struct lsquic_conn;
+struct lsquic_conn_single;
 struct lsquic_engine_public;
 struct lsquic_mm;
 struct lsquic_hash;
@@ -34,7 +34,7 @@ struct lsquic_conn_public {
     struct lsquic_rtt_stats         rtt_stats;
     struct lsquic_engine_public    *enpub;
     struct malo                    *packet_out_malo;
-    struct lsquic_conn             *lconn;
+    struct lsquic_conn_single      *lconn;
     struct lsquic_mm               *mm;
     union {
         struct {

@@ -264,7 +264,7 @@ void
 lsquic_cid2str (const struct lsquic_cid *, char *out);
 
 const struct lsquic_cid *
-lsquic_conn_log_cid (const struct lsquic_conn *);
+lsquic_conn_log_cid (const struct lsquic_conn_single *);
 
 #ifdef __cplusplus
 }

@@ -8,7 +8,7 @@
 #include "lsquic_packet_gquic.h"
 #include "lsquic_shared_support.h"
 
-struct lsquic_conn;
+struct lsquic_conn_single;
 struct lsquic_packet_in;
 struct lsquic_packet_out;
 struct packin_parse_state;
@@ -68,7 +68,7 @@ struct parse_funcs
 {
     /* Return buf length */
     int
-    (*pf_gen_reg_pkt_header) (const struct lsquic_conn *,
+    (*pf_gen_reg_pkt_header) (const struct lsquic_conn_single *,
                 const struct lsquic_packet_out *, unsigned char *, size_t,
                 /* In Q050 and IETF QUIC, these are set: */
                 unsigned *packno_off, unsigned *packno_len);
@@ -212,7 +212,7 @@ struct parse_funcs
     (*pf_turn_on_fin) (unsigned char *);
 
     size_t
-    (*pf_packout_size) (const struct lsquic_conn *,
+    (*pf_packout_size) (const struct lsquic_conn_single *,
                                             const struct lsquic_packet_out *);
 
     /* This returns the high estimate of the header size.  Note that it
@@ -220,7 +220,7 @@ struct parse_funcs
      * packets as it does not know it.
      */
     size_t
-    (*pf_packout_max_header_size) (const struct lsquic_conn *,
+    (*pf_packout_max_header_size) (const struct lsquic_conn_single *,
                     enum packet_out_flags, size_t dcid_len, enum header_type);
 
     enum packno_bits
@@ -327,10 +327,15 @@ struct parse_funcs
                                                                     size_t *);
     int
     (*pf_gen_datagram_frame) (unsigned char *, size_t bufsz, size_t min_sz,
-        size_t max_sz, ssize_t (*)(struct lsquic_conn *, void *, size_t),
-        struct lsquic_conn *);
+        size_t max_sz, ssize_t (*)(struct lsquic_conn_single *, void *, size_t),
+        struct lsquic_conn_single *);
     unsigned
     (*pf_datagram_frame_size) (size_t);
+
+    int
+    (*pf_gen_subconn_frame) (const unsigned char *buf, size_t packet_sz);
+    int
+    (*pf_parse_subconn_frame) (const unsigned char *buf, size_t packet_sz);
 };
 
 LSQUIC_EXTERN const struct parse_funcs lsquic_parse_funcs_gquic_Q043;
@@ -374,18 +379,18 @@ lsquic_calc_stream_frame_header_sz_gquic (lsquic_stream_id_t stream_id,
                                                     uint64_t offset, unsigned);
 
 size_t
-lsquic_gquic_packout_size (const struct lsquic_conn *,
+lsquic_gquic_packout_size (const struct lsquic_conn_single *,
                                             const struct lsquic_packet_out *);
 
 size_t
-lsquic_gquic_packout_header_size (const struct lsquic_conn *conn,
+lsquic_gquic_packout_header_size (const struct lsquic_conn_single *conn,
                 enum packet_out_flags flags, size_t unused, enum header_type);
 
 size_t
 lsquic_gquic_po_header_sz (enum packet_out_flags flags);
 
 size_t
-lsquic_gquic_packout_size (const struct lsquic_conn *,
+lsquic_gquic_packout_size (const struct lsquic_conn_single *,
                                             const struct lsquic_packet_out *);
 
 size_t

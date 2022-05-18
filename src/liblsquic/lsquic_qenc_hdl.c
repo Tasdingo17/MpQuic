@@ -91,7 +91,7 @@ qeh_begin_out (struct qpack_enc_hdl *qeh)
 
 
 void
-lsquic_qeh_init (struct qpack_enc_hdl *qeh, struct lsquic_conn *conn)
+lsquic_qeh_init (struct qpack_enc_hdl *qeh, struct lsquic_conn_single *conn)
 {
     assert(!(qeh->qeh_flags & QEH_INITIALIZED));
     qeh->qeh_conn = conn;
@@ -178,7 +178,7 @@ qeh_out_on_new (void *stream_if_ctx, struct lsquic_stream *stream)
                                     == (QEH_INITIALIZED|QEH_HAVE_SETTINGS))
         qeh_begin_out(qeh);
     else
-        qeh->qeh_conn = lsquic_stream_conn(stream);   /* Or NULL deref in log */
+        qeh->qeh_conn = lsquic_stream_conn_single(stream);   /* Or NULL deref in log */
     LSQ_DEBUG("initialized outgoing encoder stream");
     return (void *) qeh;
 }
@@ -248,7 +248,7 @@ qeh_in_on_new (void *stream_if_ctx, struct lsquic_stream *stream)
     if (qeh->qeh_flags & QEH_INITIALIZED)
         lsquic_stream_wantread(qeh->qeh_dec_sm_in, 1);
     else
-        qeh->qeh_conn = lsquic_stream_conn(stream);   /* Or NULL deref in log */
+        qeh->qeh_conn = lsquic_stream_conn_single(stream);   /* Or NULL deref in log */
     LSQ_DEBUG("initialized incoming decoder stream");
     return (void *) qeh;
 }

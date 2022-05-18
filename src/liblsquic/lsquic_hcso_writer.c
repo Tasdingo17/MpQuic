@@ -24,7 +24,7 @@
 
 #define LSQUIC_LOGGER_MODULE LSQLM_HCSO_WRITER
 #define LSQUIC_LOG_CONN_ID \
-                    lsquic_conn_log_cid(lsquic_stream_conn(writer->how_stream))
+                    lsquic_conn_log_cid(lsquic_stream_conn_single(writer->how_stream))
 #include "lsquic_logger.h"
 
 
@@ -67,7 +67,7 @@ static lsquic_stream_ctx_t *
 hcso_on_new (void *stream_if_ctx, struct lsquic_stream *stream)
 {
     struct hcso_writer *writer = stream_if_ctx;
-    struct lsquic_conn *lconn;
+    struct lsquic_conn_single *lconn;
 
     writer->how_stream = stream;
     lsquic_frab_list_init(&writer->how_fral, 0x100, NULL, NULL, NULL);
@@ -87,7 +87,7 @@ hcso_on_new (void *stream_if_ctx, struct lsquic_stream *stream)
     if (0 != hcso_write_type(writer))
     {
         LSQ_INFO("cannot write to frab list");
-        lconn = lsquic_stream_conn(stream);
+        lconn = lsquic_stream_conn_single(stream);
         lconn->cn_if->ci_internal_error(lconn, "cannot write to frab list");
     }
     LSQ_DEBUG("create HTTP Control Stream Writer");
@@ -361,7 +361,7 @@ hcso_on_write (struct lsquic_stream *stream, lsquic_stream_ctx_t *ctx)
         .lsqr_ctx   = &writer->how_fral
     };
     ssize_t nw;
-    struct lsquic_conn *lconn;
+    struct lsquic_conn_single *lconn;
 
 #ifndef NDEBUG
     if (stream->tosend_off < 8 && (writer->how_flags & HOW_CHOP_STREAM))
@@ -381,7 +381,7 @@ hcso_on_write (struct lsquic_stream *stream, lsquic_stream_ctx_t *ctx)
     }
     else
     {
-        lconn = lsquic_stream_conn(stream);
+        lconn = lsquic_stream_conn_single(stream);
         lconn->cn_if->ci_internal_error(lconn, "cannot write to stream: %s",
                                                             strerror(errno));
         lsquic_stream_wantwrite(stream, 0);

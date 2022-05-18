@@ -11,7 +11,7 @@
 #define LSQUIC_ENGINE_PUBLIC_H 1
 
 struct lsquic_cid;
-struct lsquic_conn;
+struct lsquic_conn_single;
 struct lsquic_engine;
 struct stack_st_X509;
 struct lsquic_hash;
@@ -49,7 +49,7 @@ struct lsquic_engine_public {
     const struct lsquic_hset_if    *enp_hsi_if;
     void                           *enp_hsi_ctx;
     void                          (*enp_generate_scid)(void *,
-                        struct lsquic_conn *, struct lsquic_cid *, unsigned);
+                        struct lsquic_conn_single *, struct lsquic_cid *, unsigned);
     void                           *enp_gen_scid_ctx;
     int                           (*enp_verify_cert)(void *verify_ctx,
                                             struct stack_st_X509 *chain);
@@ -98,24 +98,24 @@ struct lsquic_engine_public {
  */
 void
 lsquic_engine_add_conn_to_tickable (struct lsquic_engine_public *,
-                                                        lsquic_conn_t *);
+                                                        lsquic_conn_single_t *);
 
 /* Put connection onto Advisory Tick Time  Queue if it is not already on it.
  */
 void
 lsquic_engine_add_conn_to_attq (struct lsquic_engine_public *enpub,
-                                lsquic_conn_t *, lsquic_time_t, unsigned why);
+                                lsquic_conn_single_t *, lsquic_time_t, unsigned why);
 
 void
 lsquic_engine_retire_cid (struct lsquic_engine_public *,
-    struct lsquic_conn *, unsigned cce_idx, lsquic_time_t now,
+    struct lsquic_conn_single *, unsigned cce_idx, lsquic_time_t now,
     lsquic_time_t drain_time);
 
 int
 lsquic_engine_add_cid (struct lsquic_engine_public *,
-                              struct lsquic_conn *, unsigned cce_idx);
+                              struct lsquic_conn_single *, unsigned cce_idx);
 
-struct lsquic_conn *
+struct lsquic_conn_single *
 lsquic_engine_find_conn (const struct lsquic_engine_public *pub,
                          const lsquic_cid_t *cid);
 

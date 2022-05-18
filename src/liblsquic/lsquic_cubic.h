@@ -8,7 +8,7 @@
 
 #include "lsquic_shared_support.h"
 
-struct lsquic_conn;
+struct lsquic_conn_single;
 
 struct lsquic_cubic {
     lsquic_time_t   cu_min_delay;
@@ -19,7 +19,7 @@ struct lsquic_cubic {
     unsigned long   cu_cwnd;
     unsigned long   cu_tcp_cwnd;
     unsigned long   cu_ssthresh;
-    const struct lsquic_conn
+    const struct lsquic_conn_single
                    *cu_conn;            /* Used for logging */
     const struct lsquic_rtt_stats
                    *cu_rtt_stats;

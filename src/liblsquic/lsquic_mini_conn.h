@@ -87,7 +87,7 @@ typedef uint64_t mconn_packno_set_t;
 TAILQ_HEAD(head_packet_in, lsquic_packet_in);
 
 struct mini_conn {
-    struct lsquic_conn     mc_conn;
+    struct lsquic_conn_single     mc_conn;
     struct conn_cid_elem   mc_cces[1];
     struct head_packet_in  mc_deferred,
                            mc_packets_in;
@@ -147,7 +147,7 @@ struct mini_conn {
 #endif
 };
 
-lsquic_conn_t *
+lsquic_conn_single_t *
 lsquic_mini_conn_new (struct lsquic_engine_public *,
             const struct lsquic_packet_in *, enum lsquic_version version);
 

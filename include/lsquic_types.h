@@ -41,8 +41,14 @@ typedef struct lsquic_engine lsquic_engine_t;
 /** Connection */
 typedef struct lsquic_conn lsquic_conn_t;
 
-/** Connection context.  This is the return value of @ref on_new_conn. */
-typedef struct lsquic_conn_ctx lsquic_conn_ctx_t;
+/** Single Connection */
+typedef struct lsquic_conn_single lsquic_conn_single_t;
+
+/** Connection and single connection context.  This is the return value of @ref on_new_conn. */
+typedef struct lsquic_conn_ctx lsquic_conn_ctx_t, lsquic_conn_single_ctx_t;
+
+/** Single Connection context */
+//typedef struct lsquic_conn_single_ctx lsquic_conn_single_ctx_t;
 
 /** Stream */
 typedef struct lsquic_stream lsquic_stream_t;

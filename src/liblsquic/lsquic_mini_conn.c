@@ -182,7 +182,7 @@ packet_in_is_ok (enum lsquic_version version,
 }
 
 
-lsquic_conn_t *
+lsquic_conn_single_t *
 lsquic_mini_conn_new (struct lsquic_engine_public *enp,
                const struct lsquic_packet_in *packet_in,
                enum lsquic_version version)
@@ -1570,7 +1570,7 @@ have_packets_to_send (struct mini_conn *mc, lsquic_time_t now)
 
 
 static enum tick_st
-mini_conn_ci_tick (struct lsquic_conn *lconn, lsquic_time_t now)
+mini_conn_ci_tick (struct lsquic_conn_single *lconn, lsquic_time_t now)
 {
     struct mini_conn *mc = (struct mini_conn *) lconn;
     enum tick_st tick;
@@ -1789,7 +1789,7 @@ inord_to_str (const struct mini_conn *mc, char *buf, size_t bufsz)
 
 
 static void
-mini_conn_ci_packet_in (struct lsquic_conn *lconn,
+mini_conn_ci_packet_in (struct lsquic_conn_single *lconn,
                         struct lsquic_packet_in *packet_in)
 {
     struct mini_conn *mc = (struct mini_conn *) lconn;
@@ -1864,7 +1864,7 @@ mini_conn_ci_packet_in (struct lsquic_conn *lconn,
  * packet is decrypted, so we have to follow different logic here.
  */
 static void
-mini_conn_ci_Q050_packet_in (struct lsquic_conn *lconn,
+mini_conn_ci_Q050_packet_in (struct lsquic_conn_single *lconn,
                         struct lsquic_packet_in *packet_in)
 {
     struct mini_conn *mc = (struct mini_conn *) lconn;
@@ -1923,7 +1923,7 @@ mini_conn_ci_Q050_packet_in (struct lsquic_conn *lconn,
 
 
 static struct lsquic_packet_out *
-mini_conn_ci_next_packet_to_send (struct lsquic_conn *lconn,
+mini_conn_ci_next_packet_to_send (struct lsquic_conn_single *lconn,
                                         const struct to_coal *to_coal_UNUSED)
 {
     struct mini_conn *mc = (struct mini_conn *) lconn;
@@ -1943,7 +1943,7 @@ mini_conn_ci_next_packet_to_send (struct lsquic_conn *lconn,
 
 
 static void
-mini_conn_ci_packet_sent (struct lsquic_conn *lconn,
+mini_conn_ci_packet_sent (struct lsquic_conn_single *lconn,
                           struct lsquic_packet_out *packet_out)
 {
     struct mini_conn *mc = (struct mini_conn *) lconn;
@@ -1959,7 +1959,7 @@ mini_conn_ci_packet_sent (struct lsquic_conn *lconn,
 
 
 static void
-mini_conn_ci_packet_not_sent (struct lsquic_conn *lconn,
+mini_conn_ci_packet_not_sent (struct lsquic_conn_single *lconn,
                               struct lsquic_packet_out *packet_out)
 {
     struct mini_conn *mc = (struct mini_conn *) lconn;
@@ -1970,7 +1970,7 @@ mini_conn_ci_packet_not_sent (struct lsquic_conn *lconn,
 
 
 static void
-mini_conn_ci_destroy (struct lsquic_conn *lconn)
+mini_conn_ci_destroy (struct lsquic_conn_single *lconn)
 {
     assert(!(lconn->cn_flags & LSCONN_HASHED));
     struct mini_conn *mc = (struct mini_conn *) lconn;
@@ -2086,7 +2086,7 @@ mini_conn_ci_destroy (struct lsquic_conn *lconn)
 
 
 static struct lsquic_engine *
-mini_conn_ci_get_engine (struct lsquic_conn *lconn)
+mini_conn_ci_get_engine (struct lsquic_conn_single *lconn)
 {
     struct mini_conn *mc = (struct mini_conn *) lconn;
     return mc->mc_enpub->enp_engine;
@@ -2094,7 +2094,7 @@ mini_conn_ci_get_engine (struct lsquic_conn *lconn)
 
 
 static void
-mini_conn_ci_hsk_done (struct lsquic_conn *lconn, enum lsquic_hsk_status status)
+mini_conn_ci_hsk_done (struct lsquic_conn_single *lconn, enum lsquic_hsk_status status)
 {
     assert(0);
 }
@@ -2108,7 +2108,7 @@ mini_conn_ci_hsk_done (struct lsquic_conn *lconn, enum lsquic_hsk_status status)
  * an alarm pending, in which case it will be handled via the attq.
  */
 static int
-mini_conn_ci_is_tickable (struct lsquic_conn *lconn)
+mini_conn_ci_is_tickable (struct lsquic_conn_single *lconn)
 {
     struct mini_conn *const mc = (struct mini_conn *) lconn;
     const struct lsquic_packet_out *packet_out;
@@ -2123,7 +2123,7 @@ mini_conn_ci_is_tickable (struct lsquic_conn *lconn)
 
 
 static lsquic_time_t
-mini_conn_ci_next_tick_time (struct lsquic_conn *lconn, unsigned *why)
+mini_conn_ci_next_tick_time (struct lsquic_conn_single *lconn, unsigned *why)
 {
     struct mini_conn *mc = (struct mini_conn *) lconn;
     lsquic_packet_out_t *packet_out;
@@ -2160,7 +2160,7 @@ mini_conn_ci_client_call_on_new (struct lsquic_conn *lconn)
 
 
 static void
-mini_conn_ci_internal_error (struct lsquic_conn *lconn,
+mini_conn_ci_internal_error (struct lsquic_conn_single *lconn,
                                                     const char *format, ...)
 {
     struct mini_conn *mc = (struct mini_conn *) lconn;
@@ -2171,7 +2171,7 @@ mini_conn_ci_internal_error (struct lsquic_conn *lconn,
 
 /* This function should not be called, as this is specific to IETF QUIC */
 static void
-mini_conn_ci_abort_error (struct lsquic_conn *lconn, int is_app,
+mini_conn_ci_abort_error (struct lsquic_conn_single *lconn, int is_app,
                                 unsigned error_code, const char *fmt, ...)
 {
     struct mini_conn *mc = (struct mini_conn *) lconn;
@@ -2182,14 +2182,14 @@ mini_conn_ci_abort_error (struct lsquic_conn *lconn, int is_app,
 
 
 static void
-mini_conn_ci_tls_alert (struct lsquic_conn *lconn, uint8_t alert)
+mini_conn_ci_tls_alert (struct lsquic_conn_single *lconn, uint8_t alert)
 {
     assert(0);
 }
 
 
 static unsigned char
-mini_conn_ci_record_addrs (struct lsquic_conn *lconn, void *peer_ctx,
+mini_conn_ci_record_addrs (struct lsquic_conn_single *lconn, void *peer_ctx,
             const struct sockaddr *local_sa, const struct sockaddr *peer_sa)
 {
     struct mini_conn *mc = (struct mini_conn *) lconn;
@@ -2213,7 +2213,7 @@ mini_conn_ci_record_addrs (struct lsquic_conn *lconn, void *peer_ctx,
 
 
 static struct network_path *
-mini_conn_ci_get_path (struct lsquic_conn *lconn, const struct sockaddr *sa)
+mini_conn_ci_get_path (struct lsquic_conn_single *lconn, const struct sockaddr *sa)
 {
     struct mini_conn *mc = (struct mini_conn *) lconn;
 

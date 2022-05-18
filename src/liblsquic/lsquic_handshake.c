@@ -75,8 +75,8 @@
  * called.  This is a workaround.
  */
 static struct conn_cid_elem dummy_cce;
-static const struct lsquic_conn dummy_lsquic_conn = { .cn_cces = &dummy_cce, };
-static const struct lsquic_conn *const lconn = &dummy_lsquic_conn;
+static const struct lsquic_conn_single dummy_lsquic_conn = { .cn_cces = &dummy_cce, };
+static const struct lsquic_conn_single *const lconn = &dummy_lsquic_conn;
 
 static int s_ccrt_idx;
 
@@ -241,7 +241,7 @@ enum gel { GEL_CLEAR, GEL_EARLY, GEL_FORW, N_GELS /* Angels! */ };
 
 struct lsquic_enc_session
 {
-    struct lsquic_conn  *es_conn;
+    struct lsquic_conn_single  *es_conn;
     enum handshake_state hsk_state;
     enum {
         ES_SERVER =     1 << 0,
@@ -793,7 +793,7 @@ maybe_log_secrets (struct lsquic_enc_session *enc_session)
 
 
 static enc_session_t *
-lsquic_enc_session_create_client (struct lsquic_conn *lconn, const char *domain,
+lsquic_enc_session_create_client (struct lsquic_conn_single *lconn, const char *domain,
                     lsquic_cid_t cid, struct lsquic_engine_public *enpub,
                                     const unsigned char *sess_resume, size_t sess_resume_len)
 {
@@ -871,7 +871,7 @@ lsquic_enc_session_create_client (struct lsquic_conn *lconn, const char *domain,
 
 /* Server side: Session_cache_entry can be saved for 0rtt */
 static enc_session_t *
-lsquic_enc_session_create_server (struct lsquic_conn *lconn, lsquic_cid_t cid,
+lsquic_enc_session_create_server (struct lsquic_conn_single *lconn, lsquic_cid_t cid,
                         struct lsquic_engine_public *enpub)
 {
     fiu_return_on("handshake/new_enc_session", NULL);
@@ -3159,7 +3159,7 @@ lsquic_enc_session_decrypt (struct lsquic_enc_session *enc_session,
 static enum dec_packin
 gquic_decrypt_packet (enc_session_t *enc_session_p,
                             struct lsquic_engine_public *enpub,
-                            const struct lsquic_conn *lconn,
+                            const struct lsquic_conn_single *lconn,
                             struct lsquic_packet_in *packet_in)
 {
     struct lsquic_enc_session *const enc_session = enc_session_p;
@@ -3489,7 +3489,7 @@ lsquic_enc_session_get_peer_setting (enc_session_t *enc_session_p,
 
 
 static const char *
-lsquic_enc_session_cipher (enc_session_t *enc_session_p)
+lsquic_enc_session_cipher (enc_session_t *enc_session)
 {
     return LN_aes_128_gcm; /* TODO: get this string from enc_session */
 }
@@ -3688,7 +3688,7 @@ lsquic_enc_session_is_sess_resume_enabled (enc_session_t *enc_session_p)
 
 static ssize_t
 gquic_really_encrypt_packet (struct lsquic_enc_session *enc_session,
-    const struct lsquic_conn *lconn, struct lsquic_packet_out *packet_out,
+    const struct lsquic_conn_single *lconn, struct lsquic_packet_out *packet_out,
     unsigned char *buf, size_t bufsz)
 {
     int header_sz, is_hello_packet;
@@ -3762,10 +3762,10 @@ lsquic_enc_session_get_server_cert_chain (enc_session_t *enc_session_p)
 
 static void
 maybe_dispatch_sess_resume (enc_session_t *enc_session_p,
-                void (*cb)(struct lsquic_conn *, const unsigned char *, size_t))
+                void (*cb)(struct lsquic_conn_single *, const unsigned char *, size_t))
 {
     struct lsquic_enc_session *const enc_session = enc_session_p;
-    struct lsquic_conn *const lconn = enc_session->es_conn;
+    struct lsquic_conn_single *const lconn = enc_session->es_conn;
     void *buf;
     size_t sz;
     int i;
@@ -3803,7 +3803,7 @@ maybe_dispatch_sess_resume (enc_session_t *enc_session_p,
 static enum enc_packout
 gquic_encrypt_packet (enc_session_t *enc_session_p,
         const struct lsquic_engine_public *enpub,
-        struct lsquic_conn *lconn, struct lsquic_packet_out *packet_out)
+        struct lsquic_conn_single *lconn, struct lsquic_packet_out *packet_out)
 {
     struct lsquic_enc_session *const enc_session = enc_session_p;
     ssize_t enc_sz;
@@ -3848,7 +3848,7 @@ gquic_encrypt_packet (enc_session_t *enc_session_p,
 
 
 static void
-gquic_esf_set_conn (enc_session_t *enc_session_p, struct lsquic_conn *lconn)
+gquic_esf_set_conn (enc_session_t *enc_session_p, struct lsquic_conn_single *lconn)
 {
     struct lsquic_enc_session *const enc_session = enc_session_p;
     enc_session->es_conn = lconn;
@@ -3972,11 +3972,11 @@ static const enum enc_level gel2el[] =
 
 static enum enc_packout
 gquic2_esf_encrypt_packet (enc_session_t *enc_session_p,
-    const struct lsquic_engine_public *enpub, struct lsquic_conn *lconn_UNUSED,
+    const struct lsquic_engine_public *enpub, struct lsquic_conn_single *lconn_UNUSED,
     struct lsquic_packet_out *packet_out)
 {
     struct lsquic_enc_session *const enc_session = enc_session_p;
-    struct lsquic_conn *const lconn = enc_session->es_conn;
+    struct lsquic_conn_single *const lconn = enc_session->es_conn;
     EVP_AEAD_CTX *aead_ctx;
     unsigned char *dst;
     enum gel gel;
@@ -4161,7 +4161,7 @@ gquic2_strip_hp (struct lsquic_enc_session *enc_session,
 
 static enum dec_packin
 gquic2_esf_decrypt_packet (enc_session_t *enc_session_p,
-        struct lsquic_engine_public *enpub, const struct lsquic_conn *lconn,
+        struct lsquic_engine_public *enpub, const struct lsquic_conn_single *lconn,
         struct lsquic_packet_in *packet_in)
 {
     struct lsquic_enc_session *const enc_session = enc_session_p;

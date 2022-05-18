@@ -87,7 +87,7 @@ write_packno (unsigned char *p, lsquic_packno_t packno, enum packno_bits bits)
 
 
 static int
-gen_short_pkt_header (const struct lsquic_conn *lconn,
+gen_short_pkt_header (const struct lsquic_conn_single *lconn,
             const struct lsquic_packet_out *packet_out, unsigned char *buf,
                                                                 size_t bufsz)
 {
@@ -120,7 +120,7 @@ gen_short_pkt_header (const struct lsquic_conn *lconn,
 
 
 static size_t
-gquic_Q046_packout_header_size_long (const struct lsquic_conn *lconn,
+gquic_Q046_packout_header_size_long (const struct lsquic_conn_single *lconn,
                                                 enum packet_out_flags flags)
 {
     if ((lconn->cn_flags & LSCONN_SERVER) && (flags & PO_NONCE))
@@ -139,7 +139,7 @@ static const unsigned char header_type_to_bin[] = {
 
 
 static int
-gen_long_pkt_header (const struct lsquic_conn *lconn,
+gen_long_pkt_header (const struct lsquic_conn_single *lconn,
             const struct lsquic_packet_out *packet_out, unsigned char *buf,
                                                                 size_t bufsz)
 {
@@ -186,7 +186,7 @@ gen_long_pkt_header (const struct lsquic_conn *lconn,
 
 
 static int
-gquic_Q046_gen_reg_pkt_header (const struct lsquic_conn *lconn,
+gquic_Q046_gen_reg_pkt_header (const struct lsquic_conn_single *lconn,
             const struct lsquic_packet_out *packet_out, unsigned char *buf,
         size_t bufsz, unsigned *packno_off_UNUSED, unsigned *packno_len_UNUSED)
 {
@@ -198,7 +198,7 @@ gquic_Q046_gen_reg_pkt_header (const struct lsquic_conn *lconn,
 
 
 static size_t
-gquic_Q046_packout_header_size_short (const struct lsquic_conn *lconn,
+gquic_Q046_packout_header_size_short (const struct lsquic_conn_single *lconn,
                                             enum packet_out_flags flags)
 {
     enum packno_bits bits;
@@ -214,7 +214,7 @@ gquic_Q046_packout_header_size_short (const struct lsquic_conn *lconn,
 
 
 static size_t
-gquic_Q046_packout_header_size (const struct lsquic_conn *lconn,
+gquic_Q046_packout_header_size (const struct lsquic_conn_single *lconn,
                             enum packet_out_flags flags, size_t dcid_len_unused,
                             enum header_type unused)
 {
@@ -226,7 +226,7 @@ gquic_Q046_packout_header_size (const struct lsquic_conn *lconn,
 
 
 static size_t
-gquic_Q046_packout_size (const struct lsquic_conn *lconn,
+gquic_Q046_packout_size (const struct lsquic_conn_single *lconn,
                                 const struct lsquic_packet_out *packet_out)
 {
     size_t sz;

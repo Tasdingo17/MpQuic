@@ -36,7 +36,7 @@ enum pseudo_header
 
 struct header_writer_ctx
 {
-    const struct lsquic_conn    *hwc_conn;
+    const struct lsquic_conn_single    *hwc_conn;
     char                        *buf;
     char                        *cookie_val;
     unsigned                     cookie_sz, cookie_nalloc;

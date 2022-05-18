@@ -34,7 +34,7 @@
 
 #define LSQUIC_LOGGER_MODULE LSQLM_FRAME_WRITER
 #define LSQUIC_LOG_CONN_ID lsquic_conn_log_cid(\
-                                        lsquic_stream_conn(fw->fw_stream))
+                                        lsquic_stream_conn_single(fw->fw_stream))
 #include "lsquic_logger.h"
 
 /* Size of the buffer passed to lshpack_enc_encode() -- this limits the size
