@@ -53,7 +53,9 @@ echo_server_on_new_conn (void *stream_if_ctx, lsquic_conn_t *conn)
     conn_h->server_ctx = server_ctx;
     TAILQ_INSERT_TAIL(&server_ctx->conn_ctxs, conn_h, next_connh);
     LSQ_NOTICE("New connection!");
+    LSQ_NOTICE("In on_new_conn!");
     print_conn_info(conn);
+    LSQ_INFO("After conn_info!");
     return conn_h;
 }
 
@@ -61,6 +63,7 @@ echo_server_on_new_conn (void *stream_if_ctx, lsquic_conn_t *conn)
 static void
 echo_server_on_conn_closed (lsquic_conn_t *conn)
 {
+    LSQ_DEBUG("In callback on_conn_closed");
     lsquic_conn_ctx_t *conn_h = lsquic_conn_get_ctx(conn);
     if (conn_h->server_ctx->n_conn)
     {
@@ -162,6 +165,7 @@ echo_server_on_stream_close (lsquic_stream_t *stream, lsquic_stream_ctx_t *st_h)
     conn_h = find_conn_h(st_h->server_ctx, stream);
     LSQ_WARN("%s: TODO: free connection handler %p", __func__, conn_h);
     free(st_h);
+    LSQ_INFO("%s completed", __func__);
 }
 
 
@@ -231,6 +235,7 @@ main (int argc, char **argv)
     LSQ_DEBUG("entering event loop");
 
     s = prog_run(&prog);
+    LSQ_DEBUG("cleaning up!");
     prog_cleanup(&prog);
 
     exit(0 == s ? EXIT_SUCCESS : EXIT_FAILURE);

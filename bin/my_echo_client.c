@@ -37,7 +37,6 @@ struct lsquic_conn_ctx;
 
 struct echo_client_ctx {
     struct lsquic_conn_ctx  *conn_h;
-    struct lsquic_conn_ctx  *sub_conn_h;
     struct prog                 *prog;
 };
 
@@ -272,10 +271,10 @@ main (int argc, char **argv)
         LSQ_ERROR("could not connect");
         exit(EXIT_FAILURE);
     }
-
     LSQ_DEBUG("entering event loop");
 
     s = prog_run(&prog);
+    //prog_stop(&prog);
     prog_cleanup(&prog);
 
     exit(0 == s ? EXIT_SUCCESS : EXIT_FAILURE);

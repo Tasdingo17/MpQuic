@@ -21,54 +21,54 @@ IF(MSVC)
     LIST(APPEND LIBS ${GETOPT_LIB})
 ENDIF()
 
-add_executable(http_server http_server.c prog.c test_common.c test_cert.c)
+#add_executable(http_server http_server.c prog.c test_common.c test_cert.c)
 IF(NOT MSVC)   #   TODO: port MD5 server and client to Windows
-add_executable(md5_server md5_server.c prog.c test_common.c test_cert.c)
-add_executable(md5_client md5_client.c prog.c test_common.c test_cert.c)
+#add_executable(md5_server md5_server.c prog.c test_common.c test_cert.c)
+#add_executable(md5_client md5_client.c prog.c test_common.c test_cert.c)
 ENDIF()
-add_executable(echo_server echo_server.c prog.c test_common.c test_cert.c)
-add_executable(echo_client echo_client.c prog.c test_common.c test_cert.c)
-add_executable(duck_server duck_server.c prog.c test_common.c test_cert.c)
-add_executable(duck_client duck_client.c prog.c test_common.c test_cert.c)
-add_executable(perf_client perf_client.c prog.c test_common.c test_cert.c)
-add_executable(perf_server perf_server.c prog.c test_common.c test_cert.c)
+#add_executable(echo_server echo_server.c prog.c test_common.c test_cert.c)
+#add_executable(echo_client echo_client.c prog.c test_common.c test_cert.c)
+#add_executable(duck_server duck_server.c prog.c test_common.c test_cert.c)
+#add_executable(duck_client duck_client.c prog.c test_common.c test_cert.c)
+#add_executable(perf_client perf_client.c prog.c test_common.c test_cert.c)
+#add_executable(perf_server perf_server.c prog.c test_common.c test_cert.c)
 
 add_executable(my_echo_client my_echo_client.c my_prog.c test_common.c test_cert.c)
 add_executable(my_echo_server my_echo_server.c my_prog.c test_common.c test_cert.c)
 
 IF (NOT MSVC)
 
-add_executable(http_client
-    http_client.c
-    prog.c
-    test_common.c
-    test_cert.c
-)
+#add_executable(http_client
+#    http_client.c
+#    prog.c
+#    test_common.c
+#    test_cert.c
+#)
 
 #MSVC
 ELSE()
 
-add_executable(http_client
-    http_client.c
-    prog.c
-    test_common.c
-    test_cert.c
-)
+#add_executable(http_client
+#    http_client.c
+#    prog.c
+#    test_common.c
+#    test_cert.c
+#)
 
 ENDIF()
 
-TARGET_LINK_LIBRARIES(http_client ${LIBS})
-TARGET_LINK_LIBRARIES(http_server ${LIBS})
+#TARGET_LINK_LIBRARIES(http_client ${LIBS})
+#TARGET_LINK_LIBRARIES(http_server ${LIBS})
 IF(NOT MSVC)
-TARGET_LINK_LIBRARIES(md5_server  ${LIBS})
-TARGET_LINK_LIBRARIES(md5_client  ${LIBS})
+#TARGET_LINK_LIBRARIES(md5_server  ${LIBS})
+#TARGET_LINK_LIBRARIES(md5_client  ${LIBS})
 ENDIF()
-TARGET_LINK_LIBRARIES(echo_server ${LIBS})
-TARGET_LINK_LIBRARIES(echo_client ${LIBS})
-TARGET_LINK_LIBRARIES(duck_server ${LIBS})
-TARGET_LINK_LIBRARIES(duck_client ${LIBS})
-TARGET_LINK_LIBRARIES(perf_client ${LIBS})
-TARGET_LINK_LIBRARIES(perf_server ${LIBS})
+#TARGET_LINK_LIBRARIES(echo_server ${LIBS})
+#TARGET_LINK_LIBRARIES(echo_client ${LIBS})
+#TARGET_LINK_LIBRARIES(duck_server ${LIBS})
+#TARGET_LINK_LIBRARIES(duck_client ${LIBS})
+#TARGET_LINK_LIBRARIES(perf_client ${LIBS})
+#TARGET_LINK_LIBRARIES(perf_server ${LIBS})
 
 TARGET_LINK_LIBRARIES(my_echo_client ${LIBS})
 TARGET_LINK_LIBRARIES(my_echo_server ${LIBS})

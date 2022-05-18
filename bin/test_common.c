@@ -1724,11 +1724,14 @@ sport_packets_out (void *ctx, const struct lsquic_out_spec *specs,
 {
 #if HAVE_SENDMMSG
     const struct prog *prog = ctx;
-    if (prog->prog_use_sendmmsg)
+    if (prog->prog_use_sendmmsg){
+        //LSQ_INFO("Using sendmsg");
         return send_packets_using_sendmmsg(specs, count);
-    else
+    } else {
 #endif
+        //LSQ_INFO("Using one_by_one");
         return send_packets_one_by_one(specs, count);
+    }
 }
 
 
@@ -2210,7 +2213,7 @@ void
 print_conn_info (const lsquic_conn_t *conn)
 {
     const char *cipher;
-
+    LSQ_INFO("In print_conn_info");
     cipher = lsquic_conn_crypto_cipher(conn);
 
     LSQ_INFO("Connection info: version: %u; cipher: %s; key size: %d, alg key size: %d",
