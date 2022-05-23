@@ -37,6 +37,8 @@
 #include "test_common.h"
 #include "my_prog.h"
 
+#define PEER_SUBCONN_SA "127.0.0.1:12345"
+
 static int prog_stopped;
 static const char *s_keylog_dir;
 static const char *s_sess_resume_file;
@@ -412,7 +414,7 @@ prog_connect (struct prog *prog, unsigned char *sess_resume, size_t sess_resume_
 
     
     struct service_port *sub_sport;
-    int s = prog_add_sport(prog, "127.0.0.1:12345");
+    int s = prog_add_sport(prog, PEER_SUBCONN_SA);
     if (0 != s){
         LSQ_NOTICE("Failed to make sport for subcon");
         return -1;

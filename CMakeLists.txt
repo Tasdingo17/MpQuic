@@ -300,25 +300,25 @@ ENDIF()
 
 add_subdirectory(src)
 
-IF(LSQUIC_TESTS AND CMAKE_BUILD_TYPE STREQUAL "Debug")
-    # Our test framework relies on assertions, only compile if assertions are
-    # enabled.
-    #
-    enable_testing()
-    add_subdirectory(tests)
-ENDIF()
+##IF(LSQUIC_TESTS AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+#    # Our test framework relies on assertions, only compile if assertions are
+#    # enabled.
+#    #
+#    enable_testing()
+#    add_subdirectory(tests)
+#ENDIF()
 
 
-FIND_PROGRAM(SPHINX NAMES sphinx-build)
-IF(SPHINX)
-    ADD_CUSTOM_TARGET(docs
-        ${SPHINX} -b html
-        docs
-        docs/_build
-    )
-ELSE()
-    MESSAGE(STATUS "sphinx-build not found: docs won't be made")
-ENDIF()
+#FIND_PROGRAM(SPHINX NAMES sphinx-build)
+#IF(SPHINX)
+#    ADD_CUSTOM_TARGET(docs
+#        ${SPHINX} -b html
+#        docs
+#        docs/_build
+#    )
+#ELSE()
+#    MESSAGE(STATUS "sphinx-build not found: docs won't be made")
+#ENDIF()
 
 INSTALL(FILES
     include/lsquic.h
