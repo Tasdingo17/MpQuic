@@ -1060,6 +1060,53 @@ insert_conn_into_hash (struct lsquic_engine *engine, struct lsquic_conn_single *
     return -1;
 }
 
+void
+print_main_and_sub_scid (struct lsquic_conn *multiconn){
+    lsquic_conn_single_t *conn = multiconn->main_conn;
+    char cidbuf_[MAX_CID_LEN * 2 + 1];
+    LSQ_INFO("Main conn dcid: %"CID_FMT, CID_BITS(conn->cn_if->ci_get_curr_dcid(conn)));
+    conn = multiconn->sub_conn;
+    LSQ_INFO("Main conn dcid: %"CID_FMT, CID_BITS(conn->cn_if->ci_get_curr_dcid(conn)));
+    return;
+}
+
+
+static struct lsquic_conn*
+assign_if_subconn (lsquic_engine_t *engine, lsquic_conn_single_t *conn){
+    struct lsquic_conn *multiconn;
+    if (!conn->cn_is_subconn){
+        /*
+        multiconn = (struct lsquic_conn *) calloc(1, sizeof(struct lsquic_conn));  // create multiconn for server
+        multiconn->mcn_n_conns = 1;
+        multiconn->main_conn = conn;
+        multiconn->mcn_conn_ctx = lsquic_conn_get_ctx_single(conn);
+        conn->cn_main_conn = multiconn;
+        */
+
+        char cidbuf_[MAX_CID_LEN * 2 + 1];
+        LSQ_INFO("mainconn:got peer's main flow dcid: %"CID_FMT, CID_BITS(&conn->main_flow_dcid));
+    } else {
+        LSQ_INFO("~!~!~!~Searching for multiconn for subconn");
+        char cidbuf_[MAX_CID_LEN * 2 + 1];
+        LSQ_INFO("subconn:got peer's main flow dcid: %"CID_FMT, CID_BITS(&conn->main_flow_dcid));
+        struct lsquic_cid cid = conn->main_flow_dcid;
+        struct lsquic_hash_elem *el = lsquic_hash_find(engine->conns_hash,
+                    cid.idbuf, cid.len);
+        if (el)
+        {
+            struct lsquic_conn_single *main_conn = lsquic_hashelem_getdata(el);
+            multiconn = main_conn->cn_main_conn;
+            multiconn->mcn_n_conns += 1;
+            multiconn->sub_conn = conn;
+            conn->cn_main_conn = multiconn;
+        } else {
+            LSQ_INFO("Failed to find main conn for sub conn");
+        }
+    }
+
+    return multiconn;
+}
+
 
 static lsquic_conn_single_t *
 new_full_conn_server (lsquic_engine_t *engine, lsquic_conn_single_t *mini_conn,
@@ -1079,9 +1126,9 @@ new_full_conn_server (lsquic_engine_t *engine, lsquic_conn_single_t *mini_conn,
         ctor = lsquic_gquic_full_conn_server_new;
     }
 
-    LSQ_INFO("BEFORE conn = ctor(&engine->pub, flags, mini_conn);");
+    //LSQ_INFO("BEFORE conn = ctor(&engine->pub, flags, mini_conn);");
     conn = ctor(&engine->pub, flags, mini_conn);
-    LSQ_INFO("AFTER conn = ctor(&engine->pub, flags, mini_conn);");
+    //LSQ_INFO("AFTER conn = ctor(&engine->pub, flags, mini_conn);");
     if (!conn)
     {
         /* Otherwise, full_conn_server_new prints its own warnings */
@@ -1093,6 +1140,15 @@ new_full_conn_server (lsquic_engine_t *engine, lsquic_conn_single_t *mini_conn,
         }
         return NULL;
     }
+
+    LSQ_INFO("~~new_full_conn_server, cn_is_subconn: %d", conn->cn_is_subconn);
+    //struct lsquic_conn *multiconn = assign_if_subconn(engine, conn);
+    assign_if_subconn(engine, conn);
+    LSQ_INFO("~~~after assign_if_subconn n_conns:%d", conn->cn_main_conn->mcn_n_conns);
+    //if (conn->cn_is_subconn){
+    //    print_main_and_sub_scid(multiconn);
+    //}
+
     ++engine->n_conns;
     if (0 != insert_conn_into_hash(engine, conn, lsquic_conn_get_peer_ctx(conn, NULL)))
     {
@@ -1104,6 +1160,7 @@ new_full_conn_server (lsquic_engine_t *engine, lsquic_conn_single_t *mini_conn,
     }
     assert(!(conn->cn_flags & CONN_REF_FLAGS));
     conn->cn_flags |= LSCONN_HASHED;
+    LSQ_INFO("!!FULL CONN CREATED!!\n");
     return conn;
 }
 
@@ -1936,17 +1993,22 @@ lsquic_engine_connect (lsquic_engine_t *engine, enum lsquic_version version,
                        /** Resumption token: optional */
                        const unsigned char *token, size_t token_sz)
 {
-    struct lsquic_conn *lconn = (struct lsquic_conn *) malloc(sizeof(struct lsquic_conn));
+    struct lsquic_conn *lconn = (struct lsquic_conn *) calloc(1, sizeof(struct lsquic_conn));
     struct lsquic_conn_single *conn = lsquic_engine_connect_single (engine, version,
                        local_sa, peer_sa, peer_ctx, conn_ctx, hostname, base_plpmtu,
                        sess_resume, sess_resume_len, token, token_sz);
     LSQ_INFO("Connected single!");
     lconn->main_conn = conn;
     lconn->mcn_n_conns = 1;
-    //LSQ_INFO("Here, lconn->mcn_n_conns: %d", lconn->mcn_n_conns);
+    gettimeofday(&lconn->start, NULL);    //timer for switch
+    conn->main_flow_dcid = conn->cn_if->ci_get_path(conn, local_sa)->np_dcid;
+    //lconn->main_dcid = conn->cn_if->ci_get_path(conn, local_sa)->np_dcid;
     //lconn->mcn_conn_ctx = lsquic_conn_get_ctx_single(conn);
     conn->cn_main_conn = lconn;
     conn->cn_if->ci_client_call_on_new(conn->cn_main_conn);
+
+    //char cidbuf_[MAX_CID_LEN * 2 + 1];
+    //LSQ_INFO("generated and assigned main_conn SCID %"CID_FMT, CID_BITS(&(lconn->main_conn->cn_cces[0].cce_cid)));
 
     /*
     struct sockaddr_in subflow_sa = lsquic_init_subflow_socket(local_sa, peer_sa);
@@ -1963,6 +2025,31 @@ lsquic_engine_connect (lsquic_engine_t *engine, enum lsquic_version version,
     LSQ_INFO("Connected subflow!\n");
     */
 
+    return lconn;
+}
+
+
+lsquic_conn_t *
+lsquic_engine_connect_subconn (lsquic_engine_t *engine, enum lsquic_version version,
+                                const struct sockaddr *local_sa,
+                                const struct sockaddr *peer_sa,
+                                void *peer_ctx, lsquic_conn_single_ctx_t *conn_ctx,
+                                const char *hostname, unsigned short base_plpmtu,
+                                const unsigned char *sess_resume, size_t sess_resume_len,
+                                /** Resumption token: optional */
+                                const unsigned char *token, size_t token_sz, struct lsquic_conn *lconn)
+{
+    struct lsquic_conn_single *conn = lsquic_engine_connect_single (engine, version,
+                       local_sa, peer_sa, peer_ctx, conn_ctx, hostname, base_plpmtu,
+                       sess_resume, sess_resume_len, token, token_sz);
+    LSQ_INFO("Connected single, subconn!");
+    lconn->sub_conn = conn;
+    lconn->mcn_n_conns += 1;
+    //lconn->mcn_conn_ctx = lsquic_conn_get_ctx_single(conn);
+    conn->cn_is_subconn = 1;
+    conn->cn_main_conn = lconn;
+    //conn->cn_if->ci_client_call_on_new(conn->cn_main_conn);
+    //lsquic_conn_call_on_new_subconn(conn->cn_main_conn);
     return lconn;
 }
 
@@ -2965,11 +3052,45 @@ maybe_log_conn_stats (struct lsquic_engine *engine, struct lsquic_conn_single *c
 
 #endif
 
+/*
+int
+silence_if_belong_to_main_conn(struct lsquic_stream *stream){
+    struct lsquic_conn_single *par_conn = stream->conn_pub->lconn;
+    if (par_conn == par_conn->cn_main_conn->main_conn && !par_conn->cn_main_conn->switched){
+        par_conn->cn_main_conn->switched = 1;
+        lsquic_stream_wantread(stream, 0);
+        lsquic_stream_wantwrite(stream, 0);
+        return 1;
+    } else {
+        return 0;
+    }
+}
+*/
+
+int
+switch_connections_client(lsquic_conn_t *lconn){
+    struct lsquic_conn_single *tmp_single;
+    
+    // change sub_conn and conn
+    tmp_single = lconn->main_conn;
+    
+    lconn->main_conn = lconn->sub_conn;
+    lconn->sub_conn = tmp_single;
+    tmp_single->cn_main_conn->switched = 1;
+    lsquic_conn_make_stream(lconn);
+    
+    return 1;
+}
+
+
+#define TIME_SWITCH 10
 
 static void
 process_connections (lsquic_engine_t *engine, conn_iter_f next_conn,
                      lsquic_time_t now)
 {
+    struct timeval timeout_timeval;
+    lsquic_conn_single_t *switch_conn = NULL;
     //LSQ_INFO("Processing connections\n");
     lsquic_conn_single_t *conn;
     enum tick_st tick_st;
@@ -3004,6 +3125,16 @@ process_connections (lsquic_engine_t *engine, conn_iter_f next_conn,
     {
         //LSQ_INFO("Next connection\n");
         tick_st = conn->cn_if->ci_tick(conn, now);
+
+        if (!(engine->flags & LSENG_SERVER) && !conn->cn_main_conn->is_switch){
+            gettimeofday(&timeout_timeval, NULL);
+            if (timeout_timeval.tv_sec - conn->cn_main_conn->start.tv_sec >= TIME_SWITCH){
+                conn->cn_main_conn->is_switch = 1;
+                switch_conn = conn;
+            }
+            LSQ_INFO("In client time in seconds: %ld", timeout_timeval.tv_sec - conn->cn_main_conn->start.tv_sec);
+        }
+
 #if LSQUIC_CONN_STATS
         if (conn == engine->busy.current)
             maybe_log_conn_stats(engine, conn, now);
@@ -3092,6 +3223,11 @@ process_connections (lsquic_engine_t *engine, conn_iter_f next_conn,
                 assert((conn->cn_flags & LSCONN_IETF)
                     && engine->pub.enp_settings.es_idle_timeout == 0);
         }
+    }
+
+    if (switch_conn != NULL){
+        LSQ_INFO("~~~Switching!");
+        switch_connections_client(switch_conn->cn_main_conn);
     }
 
     cub_flush(&cub_live);
@@ -3449,7 +3585,7 @@ int
 lsquic_engine_add_cid (struct lsquic_engine_public *enpub,
                               struct lsquic_conn_single *conn, unsigned cce_idx)
 {
-    lsquic_test_hello_word();
+    //lsquic_test_hello_word();
     struct lsquic_engine *const engine = (struct lsquic_engine *) enpub;
     struct conn_cid_elem *const cce = &conn->cn_cces[cce_idx];
     void *peer_ctx;

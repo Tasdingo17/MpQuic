@@ -400,18 +400,17 @@ prog_connect (struct prog *prog, unsigned char *sess_resume, size_t sess_resume_
 {
     struct service_port *sport;
     sport = TAILQ_FIRST(prog->prog_sports);
-    if (NULL == lsquic_engine_connect(prog->prog_engine, N_LSQVER,
-                    (struct sockaddr *) &sport->sp_local_addr,
-                    (struct sockaddr *) &sport->sas, sport, NULL,
-                    prog->prog_hostname ? prog->prog_hostname
-                    /* SNI is required for HTTP */
-                  : prog->prog_engine_flags & LSENG_HTTP ? sport->host
-                  : NULL,
-                    prog->prog_max_packet_size, sess_resume, sess_resume_len,
-                    sport->sp_token_buf, sport->sp_token_sz))
-        return -1;
+    lsquic_conn_t *multiconn = lsquic_engine_connect(prog->prog_engine, N_LSQVER,
+                                                    (struct sockaddr *) &sport->sp_local_addr,
+                                                    (struct sockaddr *) &sport->sas, sport, NULL,
+                                                    prog->prog_hostname ? prog->prog_hostname
+                                                    /* SNI is required for HTTP */
+                                                : prog->prog_engine_flags & LSENG_HTTP ? sport->host
+                                                : NULL,
+                                                    prog->prog_max_packet_size, sess_resume, sess_resume_len,
+                                                    sport->sp_token_buf, sport->sp_token_sz);
 
-    /*
+    
     struct service_port *sub_sport;
     int s = prog_add_sport(prog, "127.0.0.1:12345");
     if (0 != s){
@@ -420,7 +419,7 @@ prog_connect (struct prog *prog, unsigned char *sess_resume, size_t sess_resume_
     }
     sub_sport = TAILQ_NEXT(sport, next_sport);
     sport_init_subconn_client(sub_sport, prog);
-    if (NULL == lsquic_engine_connect(prog->prog_engine, N_LSQVER,
+    if (NULL == lsquic_engine_connect_subconn(prog->prog_engine, N_LSQVER,
                     (struct sockaddr *) &sub_sport->sp_local_addr,
                     (struct sockaddr *) &sub_sport->sas, sub_sport, NULL,
                     prog->prog_hostname ? prog->prog_hostname
@@ -428,12 +427,11 @@ prog_connect (struct prog *prog, unsigned char *sess_resume, size_t sess_resume_
                   : prog->prog_engine_flags & LSENG_HTTP ? sub_sport->host
                   : NULL,
                     prog->prog_max_packet_size, sess_resume, sess_resume_len,
-                    sub_sport->sp_token_buf, sub_sport->sp_token_sz))
+                    sub_sport->sp_token_buf, sub_sport->sp_token_sz, multiconn))
     {
         LSQ_INFO("Failed to connect subconn");
         return -1;
     }
-    */
 
     prog_process_conns(prog);
     return 0;

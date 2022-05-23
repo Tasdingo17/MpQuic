@@ -2213,7 +2213,6 @@ void
 print_conn_info (const lsquic_conn_t *conn)
 {
     const char *cipher;
-    LSQ_INFO("In print_conn_info");
     cipher = lsquic_conn_crypto_cipher(conn);
 
     LSQ_INFO("Connection info: version: %u; cipher: %s; key size: %d, alg key size: %d",

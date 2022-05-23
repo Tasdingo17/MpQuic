@@ -2243,15 +2243,57 @@ ietf_v1_gen_datagram_frame (unsigned char *buf, size_t bufsz, size_t min_sz,
 }
 
 
+static size_t
+ietf_v1_subconn_frame_size (unsigned cid_len)
+{
+    return 1                /* Frame Type */
+//         + (1 << bits)      /* Sequence Number */
+//         + 1                /* Retire Prior To (we always set it to zero */
+         + 1                /* CID length */
+         + cid_len;
+//         + IQUIC_SRESET_TOKEN_SZ;
+}
+
+
 static int 
-ietf_v1_gen_subconn_frame(const unsigned char *buf, size_t packet_sz){
-    return 1;
+ietf_v1_gen_subconn_frame (unsigned char *buf, size_t buf_len, const struct lsquic_cid *cid)
+{
+    
+    unsigned char *p;
+    //unsigned bits;
+
+    if (buf_len < ietf_v1_subconn_frame_size(cid->len))
+        return -1;
+    p = buf;
+    *p++ = 0x20;
+    *p++ = cid->len;
+    memcpy(p, cid->idbuf, cid->len);
+    p += cid->len;
+
+    return p - buf;
 }
 
 
 static int
-ietf_v1_parse_subconn_frame(const unsigned char *buf, size_t packet_sz){
-    return 1;
+ietf_v1_parse_subconn_frame(const unsigned char *buf, size_t buf_len, lsquic_cid_t *cid){
+    assert(buf[0] == 0x20);
+    assert(buf_len > 0);
+    
+    const unsigned char *p = buf + 1;
+    const unsigned char *const end = buf + buf_len;
+    unsigned char cid_len;
+    if (p >= end)
+        return -1;
+
+    cid_len = *p++;
+    if (cid_len == 0 || cid_len > MAX_CID_LEN)
+        return -2;
+    cid->len = cid_len;
+
+    memcpy(cid->idbuf, p, cid_len);
+    p += cid_len;
+
+    return p - buf;
 }
 
 
@@ -2330,4 +2372,5 @@ const struct parse_funcs lsquic_parse_funcs_ietf_v1 =
     .pf_datagram_frame_size           =  ietf_v1_datagram_frame_size,
     .pf_gen_subconn_frame             =  ietf_v1_gen_subconn_frame,
     .pf_parse_subconn_frame           =  ietf_v1_parse_subconn_frame,
+    .pf_subconn_frame_size            =  ietf_v1_subconn_frame_size,  
 };

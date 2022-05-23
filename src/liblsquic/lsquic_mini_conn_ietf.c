@@ -253,6 +253,7 @@ imico_stream_write (void *stream, const void *bufp, size_t bufsz)
         len = pf->pf_gen_crypto_frame(packet_out->po_data + packet_out->po_data_sz,
                     lsquic_packet_out_avail(packet_out), 0, cryst->mcs_write_off, 0,
                     msg_ctx.end - msg_ctx.buf, read_from_msg_ctx, &msg_ctx);
+        //LSQ_INFO("Performed pf->pf_gen_crypto_frame\n");
         if (len < 0)
             return len;
         EV_LOG_GENERATED_CRYPTO_FRAME(LSQUIC_LOG_CONN_ID, pf,
@@ -575,7 +576,8 @@ lsquic_mini_conn_ietf_new (struct lsquic_engine_public *enpub,
         }
     }
 #endif
-
+    //conn->imc_subconn = 0;
+    conn->imc_conn.cn_is_subconn = 0;
     LSQ_DEBUG("created mini connection object %p; max packet size=%hu",
                                                 conn, conn->imc_path.np_pack_size);
     return &conn->imc_conn;
@@ -1128,6 +1130,40 @@ imico_process_connection_close_frame (IMICO_PROC_FRAME_ARGS)
 
 
 static unsigned
+imico_process_subconn_frame (IMICO_PROC_FRAME_ARGS)
+{
+    LSQ_INFO("~~~PROCESSING SUBCONN FRAME IN MINI_CONN~~~");
+
+    conn->imc_conn.cn_is_subconn = 1;
+    lsquic_cid_t cid;
+    int parsed_len;
+
+    if (!conn->imc_conn.cn_seen){
+        parsed_len = conn->imc_conn.cn_pf->pf_parse_subconn_frame(p, len, &cid);
+        conn->imc_conn.cn_seen = 1;
+    } else {
+        parsed_len = conn->imc_conn.cn_pf->pf_parse_subconn_frame(p, len, &conn->imc_conn.main_flow_dcid);
+        cid = conn->imc_conn.main_flow_dcid;
+    }
+    LSQ_INFO("!!!Recieved subconn_frame len: %d", parsed_len);
+    
+    if (parsed_len < 0)
+    {
+        if (parsed_len == -2)
+            //ABORT_QUIETLY(0, TEC_FRAME_ENCODING_ERROR,
+            LSQ_INFO("SUBCONN_FRAME contains invalid CID length");
+        return 0;
+    }
+
+    char cidbuf_[MAX_CID_LEN * 2 + 1];
+    LSQ_INFO("~~~PARSED multiconn dcid: %"CID_FMT, CID_BITS(&cid));
+
+    return parsed_len;
+
+}
+
+
+static unsigned
 imico_process_invalid_frame (IMICO_PROC_FRAME_ARGS)
 {
     LSQ_DEBUG("invalid frame %u (%s)", p[0],
@@ -1163,6 +1199,7 @@ static unsigned (*const imico_process_frames[N_QUIC_FRAMES])
     [QUIC_FRAME_HANDSHAKE_DONE]     =  imico_process_invalid_frame,
     [QUIC_FRAME_ACK_FREQUENCY]      =  imico_process_invalid_frame,
     [QUIC_FRAME_TIMESTAMP]          =  imico_process_invalid_frame,
+    [QUIC_FRAME_SUBCONN]            =  imico_process_subconn_frame,
 };
 
 
@@ -1179,11 +1216,12 @@ imico_process_packet_frame (struct ietf_mini_conn *conn,
                                                                 & (1 << type))
     {
         packet_in->pi_frame_types |= 1 << type;
+        //LSQ_INFO("Processing frame: %d", type);
         return imico_process_frames[type](conn, packet_in, p, len);
     }
     else
     {
-        LSQ_DEBUG("invalid frame %u at encryption level %s", type,
+        LSQ_INFO("invalid frame %u at encryption level %s", type,
                                                 lsquic_enclev2str[enc_level]);
         return 0;
     }
@@ -2085,6 +2123,20 @@ ietf_mini_conn_ci_get_log_cid (const struct lsquic_conn_single *lconn)
 }
 
 
+static const lsquic_cid_t *
+ietf_mini_conn_ci_get_curr_dcid (const struct lsquic_conn_single *lconn)
+{
+    struct ietf_mini_conn *conn = (struct ietf_mini_conn *) lconn;
+
+    if (conn->imc_path.np_dcid.len)
+        return &conn->imc_path.np_dcid;
+    else{
+        LSQ_INFO("NO DCID YET!");
+        return NULL;
+    }
+}
+
+
 static unsigned char
 ietf_mini_conn_ci_record_addrs (struct lsquic_conn_single *lconn, void *peer_ctx,
             const struct sockaddr *local_sa, const struct sockaddr *peer_sa)
@@ -2143,6 +2195,7 @@ static const struct conn_iface mini_conn_ietf_iface = {
     .ci_destroy              =  ietf_mini_conn_ci_destroy,
     .ci_get_engine           =  ietf_mini_conn_ci_get_engine,
     .ci_get_log_cid          =  ietf_mini_conn_ci_get_log_cid,
+    .ci_get_curr_dcid        =  ietf_mini_conn_ci_get_curr_dcid,
     .ci_get_path             =  ietf_mini_conn_ci_get_path,
     .ci_hsk_done             =  ietf_mini_conn_ci_hsk_done,
     .ci_internal_error       =  ietf_mini_conn_ci_internal_error,

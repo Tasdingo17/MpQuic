@@ -35,9 +35,14 @@ lsquic_conn_get_ctx (const lsquic_conn_t *conn){
 
 void
 lsquic_conn_close (lsquic_conn_t *conn){
-    LSQ_INFO("In lsquic_conn_close\n");
+    LSQ_INFO("In lsquic_conn_close, closing main_conn\n");
     lsquic_conn_close_single(conn->main_conn);
     conn->mcn_n_conns -= 1;
+    if (conn->sub_conn){
+        LSQ_INFO("Closing subconn\n");
+        lsquic_conn_close_single(conn->sub_conn);
+        conn->mcn_n_conns -= 1;
+    }
     //if conn->mcn_n_conns <= 0{
 //      "close"(conn);
 //    }
@@ -72,13 +77,14 @@ lsquic_conn_crypto_alg_keysize (const lsquic_conn_t *c){
     return lsquic_conn_crypto_alg_keysize_single(c->main_conn);
 }
 
+/*
 struct lsquic_conn_single
 lsquic_conn_open_subflow(lsquic_conn_t *c){
     // opening
     // setting
     // dealing with conn_id
 }
-
+*/
 
 void
 lsquic_conn_call_on_new_subconn(const lsquic_conn_t *lconn){

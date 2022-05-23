@@ -255,6 +255,9 @@ struct conn_iface
     const lsquic_cid_t *
     (*ci_get_log_cid) (const struct lsquic_conn_single *);
 
+    const lsquic_cid_t *
+    (*ci_get_curr_dcid) (const struct lsquic_conn_single *);
+
     /* Optional method.  Only used by the IETF client code. */
     void
     (*ci_drop_crypto_streams) (struct lsquic_conn_single *);
@@ -352,7 +355,11 @@ struct lsquic_conn_single
     unsigned char                cn_cces_mask;  /* Those that are set */
     unsigned char                cn_n_cces; /* Number of CCEs in cn_cces */
     unsigned char                cn_cur_cce_idx;
+
     struct lsquic_conn           *cn_main_conn;
+    char                         cn_is_subconn; /* 1 if subconn, 0 if main(default) */
+    char                         cn_seen;
+    struct lsquic_cid            main_flow_dcid;
 #if LSQUIC_TEST
     struct conn_cid_elem         cn_cces_buf[8];
 #define LSCONN_INITIALIZER_CID(lsconn_, cid_) { \

@@ -188,7 +188,7 @@ lsquic_packet_out_add_stream (struct lsquic_packet_out *packet_out,
 {
     assert(!(new_stream->stream_flags & STREAM_FINISHED));
     assert((1 << frame_type)
-                & (QUIC_FTBIT_STREAM|QUIC_FTBIT_CRYPTO|QUIC_FTBIT_RST_STREAM));
+                & (QUIC_FTBIT_STREAM|QUIC_FTBIT_CRYPTO|QUIC_FTBIT_RST_STREAM|QUIC_FTBIT_SUBCONN));
     if (0 == lsquic_packet_out_add_frame(packet_out, mm,
                             (uintptr_t) new_stream, frame_type, off, len))
     {

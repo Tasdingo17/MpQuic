@@ -3251,6 +3251,7 @@ stream_write_to_packet_crypto (struct frame_gen_ctx *fg_ctx, const size_t size)
     unsigned short off;
     enum packnum_space pns;
     int len, s;
+    int len2, s2;
 
     if (stream->sm_bflags & SMBF_IETF)
         pns = lsquic_enclev2pns[ crypto_level(stream) ];
@@ -3267,6 +3268,7 @@ stream_write_to_packet_crypto (struct frame_gen_ctx *fg_ctx, const size_t size)
         return SWTP_STOP;
 
     off = packet_out->po_data_sz;
+    //LSQ_INFO("******before crypto_frame: %d", lsquic_packet_out_avail(packet_out));
     len = pf->pf_gen_crypto_frame(packet_out->po_data + packet_out->po_data_sz,
                 lsquic_packet_out_avail(packet_out), 0, stream->tosend_off, 0,
                 size, frame_std_gen_read, fg_ctx);
@@ -3277,8 +3279,33 @@ stream_write_to_packet_crypto (struct frame_gen_ctx *fg_ctx, const size_t size)
                             packet_out->po_data + packet_out->po_data_sz, len);
     lsquic_send_ctl_incr_pack_sz(send_ctl, packet_out, len);
     packet_out->po_frame_types |= 1 << QUIC_FRAME_CRYPTO;
+
+    if (stream->conn_pub->lconn->cn_is_subconn){
+        // in client mode full_conn is already created
+        if (stream->conn_pub->lconn->cn_main_conn == NULL){
+            LSQ_INFO("!!!stream->conn_pub->lconn->cn_main_conn is NULL");
+        }
+        const struct lsquic_conn_single *main_conn = stream->conn_pub->lconn->cn_main_conn->main_conn;
+        lsquic_cid_t *cid = main_conn->cn_if->ci_get_curr_dcid(main_conn);
+        LSQ_INFO("******before: %d", 0);
+        len2 = pf->pf_gen_subconn_frame(packet_out->po_data + packet_out->po_data_sz,
+                    lsquic_packet_out_avail(packet_out), cid); //todo
+        LSQ_INFO("*****after: %d", len2);
+        lsquic_send_ctl_incr_pack_sz(send_ctl, packet_out, len2);
+        packet_out->po_frame_types |= 1 << QUIC_FRAME_SUBCONN;
+    }
+
     s = lsquic_packet_out_add_stream(packet_out, stream->conn_pub->mm,
                                      stream, QUIC_FRAME_CRYPTO, off, len);
+    /*
+    if (stream->conn_pub->lconn->cn_is_subconn){
+        s2 = lsquic_packet_out_add_stream(packet_out, stream->conn_pub->mm,
+                                          stream, QUIC_FRAME_SUBCONN, off, len2);
+        if (s2 != 0){
+            LSQ_INFO("Failed to write subconn_frame");
+        }
+    }
+    */
     if (s != 0)
     {
         LSQ_WARN("adding crypto stream to packet failed: %s", strerror(errno));
@@ -5514,4 +5541,20 @@ int
 lsquic_stream_has_unacked_data (struct lsquic_stream *stream)
 {
     return stream->n_unacked > 0 || stream->sm_n_buffered > 0;
+}
+
+int
+lsquic_stream_silence_if_belong_to_main_conn(struct lsquic_stream *stream){
+    struct lsquic_conn_single *par_conn = stream->conn_pub->lconn;
+    
+    if (par_conn == par_conn->cn_main_conn->main_conn && par_conn->cn_main_conn->is_switch 
+        && !par_conn->cn_main_conn->switched || par_conn != par_conn->cn_main_conn->main_conn)
+    {
+        LSQ_INFO("Silencing main conn stream");
+        lsquic_stream_wantread(stream, 0);
+        lsquic_stream_wantwrite(stream, 0);
+        return 1;
+    } else {
+        return 0;
+    }
 }

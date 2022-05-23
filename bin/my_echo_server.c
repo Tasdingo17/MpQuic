@@ -53,9 +53,9 @@ echo_server_on_new_conn (void *stream_if_ctx, lsquic_conn_t *conn)
     conn_h->server_ctx = server_ctx;
     TAILQ_INSERT_TAIL(&server_ctx->conn_ctxs, conn_h, next_connh);
     LSQ_NOTICE("New connection!");
-    LSQ_NOTICE("In on_new_conn!");
+    //LSQ_NOTICE("In on_new_conn!");
     print_conn_info(conn);
-    LSQ_INFO("After conn_info!");
+    //LSQ_INFO("After conn_info!");
     return conn_h;
 }
 
@@ -90,6 +90,7 @@ struct lsquic_stream_ctx {
 static lsquic_stream_ctx_t *
 echo_server_on_new_stream (void *stream_if_ctx, lsquic_stream_t *stream)
 {
+    LSQ_INFO("!!!! on new stream srv");
     lsquic_stream_ctx_t *st_h = malloc(sizeof(*st_h));
     st_h->stream = stream;
     st_h->server_ctx = stream_if_ctx;

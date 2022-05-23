@@ -1390,6 +1390,16 @@ lsquic_engine_connect (lsquic_engine_t *, enum lsquic_version,
                        /** Resumption token: optional */
                        const unsigned char *token, size_t token_sz);
 
+lsquic_conn_t *
+lsquic_engine_connect_subconn (lsquic_engine_t *, enum lsquic_version,
+                       const struct sockaddr *local_sa,
+                       const struct sockaddr *peer_sa,
+                       void *peer_ctx, lsquic_conn_single_ctx_t *conn_ctx,
+                       const char *hostname, unsigned short base_plpmtu,
+                       const unsigned char *sess_resume, size_t sess_resume_len,
+                       /** Resumption token: optional */
+                       const unsigned char *token, size_t token_sz, struct lsquic_conn *lconn);
+
 /**
  * Pass incoming packet to the QUIC engine.  This function can be called
  * more than once in a row.  After you add one or more packets, call
@@ -1492,6 +1502,11 @@ lsquic_conn_close_single (lsquic_conn_single_t *);
 
 void
 lsquic_conn_close (lsquic_conn_t *);
+
+
+int
+lsquic_stream_silence_if_belong_to_main_conn(struct lsquic_stream *);
+
 
 /**
  * Set whether you want to read from stream.  If @param is_want is true,

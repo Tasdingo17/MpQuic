@@ -64,7 +64,7 @@ echo_client_on_conn_closed (lsquic_conn_t *conn)
 {
     lsquic_conn_ctx_t *conn_h = lsquic_conn_get_ctx(conn);
     LSQ_NOTICE("Connection closed");
-    prog_stop(conn_h->client_ctx->prog);
+    //prog_stop(conn_h->client_ctx->prog);
     free(conn_h);
 }
 
@@ -81,8 +81,13 @@ struct lsquic_stream_ctx {
 static void
 read_stdin (evutil_socket_t fd, short what, void *ctx)
 {
+   // LSQ_INFO("!!!!!!!!!!!!!!!!READSTDIN\n");
     ssize_t nr;
     lsquic_stream_ctx_t *st_h = ctx;
+    if (lsquic_stream_silence_if_belong_to_main_conn(st_h->stream)){
+        LSQ_INFO("###WORKED###");
+        return;
+    }
 
     nr = Read(fd, st_h->buf + st_h->buf_off++, 1);
     LSQ_DEBUG("read %zd bytes from stdin", nr);
@@ -114,6 +119,7 @@ read_stdin (evutil_socket_t fd, short what, void *ctx)
 static lsquic_stream_ctx_t *
 echo_client_on_new_stream (void *stream_if_ctx, lsquic_stream_t *stream)
 {
+    LSQ_INFO("!!!! on new stream cli");
     lsquic_stream_ctx_t *st_h = calloc(1, sizeof(*st_h));
     st_h->stream = stream;
     st_h->client_ctx = stream_if_ctx;
@@ -274,7 +280,7 @@ main (int argc, char **argv)
     LSQ_DEBUG("entering event loop");
 
     s = prog_run(&prog);
-    //prog_stop(&prog);
+    prog_stop(&prog);
     prog_cleanup(&prog);
 
     exit(0 == s ? EXIT_SUCCESS : EXIT_FAILURE);

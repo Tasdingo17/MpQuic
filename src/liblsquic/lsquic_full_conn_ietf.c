@@ -1347,6 +1347,7 @@ lsquic_ietf_full_conn_client_new (struct lsquic_engine_public *enpub,
     conn->ifc_conn.cn_cces = conn->ifc_cces;
     conn->ifc_conn.cn_n_cces = sizeof(conn->ifc_cces)
                                                 / sizeof(conn->ifc_cces[0]);
+    conn->ifc_conn.cn_is_subconn = 0;
     if (!ietf_full_conn_add_scid(conn, enpub, CCE_USED, now))
         goto err1;
 
@@ -1506,12 +1507,22 @@ lsquic_ietf_full_conn_server_new (struct lsquic_engine_public *enpub,
         goto err0;
     now = lsquic_time_now();
     
-    struct lsquic_conn *multiconn = (struct lsquic_conn *) malloc(sizeof(struct lsquic_conn));  // create multiconn for server
-    multiconn->main_conn = &conn->ifc_conn;
-    multiconn->mcn_n_conns = 1;
-    multiconn->mcn_conn_ctx = lsquic_conn_get_ctx_single(&conn->ifc_conn);
-    mini_conn->cn_main_conn = multiconn;
-    conn->ifc_conn.cn_main_conn = multiconn;
+    
+    if (!imc->imc_conn.cn_is_subconn){
+        struct lsquic_conn *multiconn = (struct lsquic_conn *) calloc(1, sizeof(struct lsquic_conn));  // create multiconn for main_flow
+        multiconn->mcn_n_conns = 1;
+        multiconn->main_conn = &conn->ifc_conn;
+        multiconn->mcn_conn_ctx = lsquic_conn_get_ctx_single(&conn->ifc_conn);
+        conn->ifc_conn.cn_main_conn = multiconn;
+        gettimeofday(&multiconn->start, NULL);  // timer for switch
+    }
+    
+    conn->ifc_conn.cn_is_subconn = imc->imc_conn.cn_is_subconn;
+    if (conn->ifc_conn.cn_is_subconn){
+        conn->ifc_conn.main_flow_dcid = imc->imc_conn.main_flow_dcid;  //initialisated only for subconn 
+    } else {
+        conn->ifc_conn.main_flow_dcid = imc->imc_conn.cn_cces[imc->imc_conn.cn_cur_cce_idx].cce_cid;     // default DCID (from peer's side)
+    }
 
     conn->ifc_conn.cn_cces = conn->ifc_cces;
     conn->ifc_conn.cn_n_cces = sizeof(conn->ifc_cces)
@@ -1689,9 +1700,11 @@ lsquic_ietf_full_conn_server_new (struct lsquic_engine_public *enpub,
 
     conn->ifc_last_live_update = now;
 
-    LSQ_DEBUG("Calling on_new_conn callback");
-    conn->ifc_conn.cn_conn_ctx = conn->ifc_enpub->enp_stream_if->on_new_conn(
-                        conn->ifc_enpub->enp_stream_if_ctx, conn->ifc_conn.cn_main_conn);
+    if (!conn->ifc_conn.cn_is_subconn){
+        LSQ_INFO("Calling on_new_conn callback");
+        conn->ifc_conn.cn_conn_ctx = conn->ifc_enpub->enp_stream_if->on_new_conn(
+                            conn->ifc_enpub->enp_stream_if_ctx, conn->ifc_conn.cn_main_conn);
+    }
     conn->ifc_idle_to = conn->ifc_settings->es_idle_timeout * 1000000;
 
     if (0 != handshake_ok(&conn->ifc_conn))
@@ -6698,6 +6711,15 @@ typedef unsigned (*process_frame_f)(
     const unsigned char *p, size_t);
 
 
+static unsigned
+process_subconn_frame (struct ietf_full_conn *conn,
+    struct lsquic_packet_in *packet_in, const unsigned char *p, size_t len)
+{
+    LSQ_INFO("~~~PROCESSING SUBCONN FRAME IN FULL_CONN~~~");
+    return 0;
+}
+
+
 static process_frame_f const process_frames[N_QUIC_FRAMES] =
 {
     [QUIC_FRAME_PADDING]            =  process_padding_frame,
@@ -6723,6 +6745,7 @@ static process_frame_f const process_frames[N_QUIC_FRAMES] =
     [QUIC_FRAME_ACK_FREQUENCY]      =  process_ack_frequency_frame,
     [QUIC_FRAME_TIMESTAMP]          =  process_timestamp_frame,
     [QUIC_FRAME_DATAGRAM]           =  process_datagram_frame,
+    [QUIC_FRAME_SUBCONN]            =  process_subconn_frame,
 };
 
 
@@ -6745,7 +6768,7 @@ process_packet_frame (struct ietf_full_conn *conn,
     }
     else
     {
-        LSQ_DEBUG("invalid frame %u (bytes: %s) at encryption level %s",
+        LSQ_INFO("invalid frame %u (bytes: %s) at encryption level %s",
             type, HEXSTR(p, MIN(len, 8), str), lsquic_enclev2str[enc_level]);
         return 0;
     }
@@ -8144,7 +8167,7 @@ write_datagram (struct ietf_full_conn *conn)
             packet_out->po_data + packet_out->po_data_sz,
             lsquic_packet_out_avail(packet_out), conn->ifc_min_dg_sz,
             conn->ifc_max_dg_sz,
-            conn->ifc_enpub->enp_stream_if->on_dg_write, &conn->ifc_conn);
+            conn->ifc_enpub->enp_stream_if->on_dg_write, &conn->ifc_conn);  // wrong types, be carefull
     if (w < 0)
     {
         LSQ_DEBUG("could not generate DATAGRAM frame");
@@ -8644,6 +8667,13 @@ ietf_full_conn_ci_get_log_cid (const struct lsquic_conn_single *lconn)
         return CUR_DCID(conn);
 }
 
+static const lsquic_cid_t *
+ietf_full_conn_ci_get_curr_dcid (const struct lsquic_conn_single *lconn)
+{
+    struct ietf_full_conn *const conn = (struct ietf_full_conn *) lconn;
+    return CUR_DCID(conn);
+}
+
 
 static struct network_path *
 ietf_full_conn_ci_get_path (struct lsquic_conn_single *lconn,
@@ -8848,6 +8878,7 @@ ietf_full_conn_ci_log_stats (struct lsquic_conn_single *lconn)
     .ci_early_data_failed    =  ietf_full_conn_ci_early_data_failed, \
     .ci_get_engine           =  ietf_full_conn_ci_get_engine, \
     .ci_get_log_cid          =  ietf_full_conn_ci_get_log_cid, \
+    .ci_get_curr_dcid        =  ietf_full_conn_ci_get_curr_dcid, \
     .ci_get_min_datagram_size=  ietf_full_conn_ci_get_min_datagram_size, \
     .ci_get_path             =  ietf_full_conn_ci_get_path, \
     .ci_going_away           =  ietf_full_conn_ci_going_away, \

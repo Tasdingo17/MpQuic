@@ -333,9 +333,11 @@ struct parse_funcs
     (*pf_datagram_frame_size) (size_t);
 
     int
-    (*pf_gen_subconn_frame) (const unsigned char *buf, size_t packet_sz);
+    (*pf_gen_subconn_frame) (unsigned char *buf, size_t buf_len, const struct lsquic_cid *cid);
     int
-    (*pf_parse_subconn_frame) (const unsigned char *buf, size_t packet_sz);
+    (*pf_parse_subconn_frame) (const unsigned char *buf, size_t buf_len, lsquic_cid_t *cid);
+    size_t
+    (*pf_subconn_frame_size) (unsigned cid_len);
 };
 
 LSQUIC_EXTERN const struct parse_funcs lsquic_parse_funcs_gquic_Q043;

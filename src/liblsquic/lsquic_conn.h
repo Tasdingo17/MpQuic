@@ -2,15 +2,22 @@
  * lsquic_conn.h -- Multiconnection
  */
 #include "lsquic_conn_single.h"
+#include<time.h>
+#include<sys/time.h>
 
 #ifndef LSQUIC_MULTICONN_H
 #define LSQUIC_MULTICONN_H
 
 struct lsquic_conn {
     struct lsquic_conn_single   *main_conn;
-    lsquic_conn_ctx_t    *mcn_conn_ctx;
-    int                   mcn_n_conns;
+    lsquic_conn_ctx_t           *mcn_conn_ctx;
+    int                         mcn_n_conns;
     struct lsquic_conn_single   *sub_conn;
+
+    struct timeval              start;
+    char                        is_switch;
+    char                        switched;
+    //lsquic_cid_t                main_dcid;
 };
 
 void 
